@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
 @RestController
@@ -35,12 +36,17 @@ public class ImportController {
                 return ApiResponse.error("只支持Excel文件格式(.xlsx, .xls)");
             }
             
-            String taskId = importService.importExcelAsync(file);
+            // 获取CompletableFuture的结果
+            String taskId = importService.importExcelAsync(file).get();
             return ApiResponse.success(taskId, "文件上传成功，开始处理");
             
         } catch (IOException e) {
             log.error("文件处理失败", e);
             return ApiResponse.error("文件处理失败：" + e.getMessage());
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("异步任务执行失败", e);
+            Thread.currentThread().interrupt(); // 重置中断状态
+            return ApiResponse.error("异步处理失败：" + e.getMessage());
         }
     }
 

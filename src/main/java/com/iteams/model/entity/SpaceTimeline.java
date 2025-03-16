@@ -1,12 +1,17 @@
 package com.iteams.model.entity;
 
-import lombok.Data;
+import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.proxy.HibernateProxy;
 
-import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
-@Data
+@Getter
+@Setter
+@ToString
+@RequiredArgsConstructor
 @Entity
 @Table(name = "space_timeline")
 public class SpaceTimeline {
@@ -17,16 +22,17 @@ public class SpaceTimeline {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "asset_id")
+    @ToString.Exclude
     private AssetMaster asset;
 
     @Column(length = 500, nullable = false)
     private String locationPath;
 
     // 我们使用两个经纬度字段代替POINT类型，简化实现
-    @Column(precision = 10, scale = 7)
+    @Column(columnDefinition = "DOUBLE(10,7)")
     private Double latitude;
     
-    @Column(precision = 10, scale = 7)
+    @Column(columnDefinition = "DOUBLE(10,7)")
     private Double longitude;
 
     @Column(nullable = false)
@@ -59,4 +65,20 @@ public class SpaceTimeline {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-} 
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null) return false;
+        Class<?> oEffectiveClass = o instanceof HibernateProxy ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
+        Class<?> thisEffectiveClass = this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
+        if (thisEffectiveClass != oEffectiveClass) return false;
+        SpaceTimeline that = (SpaceTimeline) o;
+        return getSpaceId() != null && Objects.equals(getSpaceId(), that.getSpaceId());
+    }
+
+    @Override
+    public final int hashCode() {
+        return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
+    }
+}

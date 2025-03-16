@@ -11,9 +11,9 @@ spring:
   
   # 数据源配置
   datasource:
-    url: jdbc:mysql://localhost:3306/iteams_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/iteams_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
-    password: root
+    password: h3c.com123
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 20
@@ -22,10 +22,10 @@ spring:
   
   # JPA配置
   jpa:
-    database-platform: org.hibernate.dialect.MySQL8Dialect
+    database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
       ddl-auto: update  # 设置为update，让Hibernate自动更新表结构
-    show-sql: true
+    show-sql: false  # 关闭控制台SQL输出，使用logback配置
     properties:
       hibernate:
         format_sql: true
@@ -53,18 +53,6 @@ spring:
         queue-capacity: 25
         keep-alive: 60s
       thread-name-prefix: async-task-
-
-# 日志配置
-logging:
-  level:
-    root: INFO
-    com.iteams: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-  file:
-    name: logs/iteams.log
-    max-size: 10MB
-    max-history: 30
 
 # 自定义配置
 iteams:

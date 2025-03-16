@@ -27,6 +27,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Excel导入服务实现类
@@ -49,9 +50,10 @@ public class ImportServiceImpl implements ImportService {
      */
     @Override
     @Async
-    public String importExcelAsync(MultipartFile file) throws IOException {
+    public CompletableFuture<String> importExcelAsync(MultipartFile file) throws IOException {
         String importBatch = UuidGenerator.generateImportBatchId();
-        return excelParser.parseFile(file, new AssetRowProcessor(importBatch));
+        String taskId = excelParser.parseFile(file, new AssetRowProcessor(importBatch));
+        return CompletableFuture.completedFuture(taskId);
     }
 
     /**
@@ -118,20 +120,20 @@ public class ImportServiceImpl implements ImportService {
                     return true; // 跳过已导入的行，但视为成功
                 }
                 
-                // 2. 处理分类信息
-                Long level1CategoryId = getLongOrNull(rowData.get("一级分类"));
-                Long level2CategoryId = getLongOrNull(rowData.get("二级分类"));
-                Long level3CategoryId = getLongOrNull(rowData.get("三级分类"));
+                // 2. 处理分类信息 - 修改为使用字符串形式存储分类名称
+                String level1Category = getStringOrNull(rowData.get("一级分类"));
+                String level2Category = getStringOrNull(rowData.get("二级分类"));
+                String level3Category = getStringOrNull(rowData.get("三级分类"));
                 
                 Map<String, Object> categoryMap = new HashMap<>();
-                categoryMap.put("l1", level1CategoryId);
-                categoryMap.put("l2", level2CategoryId);
-                categoryMap.put("l3", level3CategoryId);
+                categoryMap.put("l1", level1Category);
+                categoryMap.put("l2", level2Category);
+                categoryMap.put("l3", level3Category);
                 
-                // 验证分类树是否完整
-                if (!categoryService.validateCategoryPath(level1CategoryId, level2CategoryId, level3CategoryId)) {
-                    log.error("分类路径无效: {}/{}/{}", level1CategoryId, level2CategoryId, level3CategoryId);
-                    return false;
+                // 使用字符串分类名称进行验证
+                if (!categoryService.validateCategoryPathByName(level1Category, level2Category, level3Category)) {
+                    log.warn("分类路径验证失败: {}/{}/{}, 行: {}", level1Category, level2Category, level3Category, rowIndex);
+                    // 继续处理，不返回false以确保导入可继续
                 }
                 
                 // 3. 创建资产主记录
@@ -151,33 +153,74 @@ public class ImportServiceImpl implements ImportService {
                 asset.setImportBatch(importBatch);
                 asset.setExcelRowHash(rowHash);
                 
-                // 4. 处理空间信息（新旧数据都要处理）
+                // 4. 创建空间信息（但不立即保存）
                 SpaceTimeline currentSpace = createSpaceRecord(rowData, asset, false);
-                spaceService.saveSpace(currentSpace);
+                SpaceTimeline changedSpace = null;
+                if (hasChangeSpaceInfo(rowData)) {
+                    changedSpace = createSpaceRecord(rowData, asset, true);
+                }
+                
+                // 5. 处理维保信息（但不立即保存）
+                WarrantyContract warranty = createWarrantyRecord(rowData, asset);
+                
+                // 6. 先保存资产主记录 - 不设置关联关系
+                // 移除关联，避免Hibernate尝试级联保存未持久化的对象
+                asset.setSpace(null);
+                asset.setWarranty(null);
+                AssetMaster savedAsset = assetRepository.save(asset);
+                
+                // 7. 再保存关联实体
+                // 现在可以安全地保存空间记录，因为AssetMaster已经持久化
+                currentSpace.setAsset(savedAsset);
+                SpaceTimeline savedSpace = spaceService.saveSpace(currentSpace);
+                
+                // 8. 更新资产记录中的空间引用
+                savedAsset.setSpace(savedSpace);
+                assetRepository.save(savedAsset);
                 
                 // 如果有变更后的空间信息，则创建但标记为非当前
-                if (hasChangeSpaceInfo(rowData)) {
-                    SpaceTimeline changedSpace = createSpaceRecord(rowData, asset, true);
+                if (changedSpace != null) {
+                    changedSpace.setAsset(savedAsset);
                     spaceService.saveSpace(changedSpace);
                     
                     // 记录变更信息
-                    recordSpaceChange(asset, currentSpace, changedSpace);
+                    recordSpaceChange(savedAsset, savedSpace, changedSpace);
                 }
                 
-                // 设置当前空间
-                asset.setSpace(currentSpace);
-                
-                // 5. 处理维保信息
-                WarrantyContract warranty = createWarrantyRecord(rowData, asset);
+                // 保存维保信息
                 if (warranty != null) {
-                    warrantyService.saveWarranty(warranty);
-                    asset.setWarranty(warranty);
+                    // 检查是否已存在相同合同号的维保记录
+                    String contractNo = warranty.getContractNo();
+                    Optional<WarrantyContract> existingWarranty = warrantyService.findByContractNo(contractNo);
+                    
+                    WarrantyContract savedWarranty;
+                    if (existingWarranty.isPresent()) {
+                        // 如果已存在，则更新现有记录而不是创建新记录
+                        WarrantyContract existing = existingWarranty.get();
+                        // 更新现有记录的字段
+                        existing.setStartDate(warranty.getStartDate());
+                        existing.setEndDate(warranty.getEndDate());
+                        existing.setProvider(warranty.getProvider());
+                        existing.setProviderLevel(warranty.getProviderLevel());
+                        existing.setWarrantyStatus(warranty.getWarrantyStatus());
+                        existing.setAssetLifeYears(warranty.getAssetLifeYears());
+                        existing.setAcceptanceDate(warranty.getAcceptanceDate());
+                        // 保持原有的资产关联，不更新asset字段
+                        
+                        savedWarranty = warrantyService.saveWarranty(existing);
+                        log.info("更新已存在的维保合约: {}", contractNo);
+                    } else {
+                        // 如果不存在，则设置资产关联并保存新记录
+                        warranty.setAsset(savedAsset);
+                        savedWarranty = warrantyService.saveWarranty(warranty);
+                    }
+                    
+                    // 更新资产记录中的维保引用
+                    savedAsset.setWarranty(savedWarranty);
+                    assetRepository.save(savedAsset);
                 }
                 
-                // 6. 保存资产记录
-                AssetMaster savedAsset = assetRepository.save(asset);
-                
-                // 7. 记录初始状态变更
+                // 9. 记录初始状态变更
                 recordInitialState(savedAsset, rowData);
                 
                 return true;
@@ -377,7 +420,27 @@ public class ImportServiceImpl implements ImportService {
                 } else if (value instanceof String) {
                     String strValue = (String) value;
                     if (strValue.trim().isEmpty()) return null;
-                    return LocalDate.parse(strValue, DATE_FORMATTER);
+                    
+                    // 支持多种日期格式
+                    DateTimeFormatter[] formatters = new DateTimeFormatter[] {
+                        DATE_FORMATTER,  // yyyy-MM-dd
+                        DateTimeFormatter.ofPattern("yyyy/MM/dd"),  // yyyy/MM/dd
+                        DateTimeFormatter.ofPattern("dd/MM/yyyy"),  // dd/MM/yyyy
+                        DateTimeFormatter.ofPattern("MM/dd/yyyy"),  // MM/dd/yyyy
+                        DateTimeFormatter.ofPattern("yyyy年MM月dd日")  // 中文格式
+                    };
+                    
+                    // 尝试所有支持的格式
+                    for (DateTimeFormatter formatter : formatters) {
+                        try {
+                            return LocalDate.parse(strValue, formatter);
+                        } catch (Exception e) {
+                            // 继续尝试下一种格式
+                        }
+                    }
+                    
+                    // 所有格式都失败，记录日志
+                    log.warn("无法解析日期 '{}' 为任何支持的格式", strValue);
                 }
             } catch (Exception e) {
                 log.warn("日期解析失败: {}", value);

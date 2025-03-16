@@ -15,4 +15,9 @@ public interface WarrantyRepository extends JpaRepository<WarrantyContract, Long
     Optional<WarrantyContract> findByAsset_AssetIdAndIsActiveTrue(Long assetId);
     
     List<WarrantyContract> findByAsset_AssetIdOrderByEndDateDesc(Long assetId);
+    
+    /**
+     * 通过合同号查找维保合约
+     */
+    Optional<WarrantyContract> findByContractNo(String contractNo);
 } 

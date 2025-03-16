@@ -5,6 +5,7 @@ import com.iteams.repository.WarrantyRepository;
 import com.iteams.service.WarrantyService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Optional;
 
 @Service
 public class WarrantyServiceImpl implements WarrantyService {
@@ -19,5 +20,11 @@ public class WarrantyServiceImpl implements WarrantyService {
     @Transactional
     public WarrantyContract saveWarranty(WarrantyContract warranty) {
         return warrantyRepository.save(warranty);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<WarrantyContract> findByContractNo(String contractNo) {
+        return warrantyRepository.findByContractNo(contractNo);
     }
 } 

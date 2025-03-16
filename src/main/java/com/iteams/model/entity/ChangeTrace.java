@@ -1,12 +1,17 @@
 package com.iteams.model.entity;
 
-import lombok.Data;
+import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.proxy.HibernateProxy;
 
-import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
-@Data
+@Getter
+@Setter
+@ToString
+@RequiredArgsConstructor
 @Entity
 @Table(name = "change_trace")
 public class ChangeTrace {
@@ -17,6 +22,7 @@ public class ChangeTrace {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "asset_id")
+    @ToString.Exclude
     private AssetMaster asset;
 
     @Enumerated(EnumType.STRING)
@@ -42,4 +48,20 @@ public class ChangeTrace {
     public enum ChangeType {
         SPACE, STATUS, WARRANTY, PROPERTY, OWNER, INITIAL
     }
-} 
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null) return false;
+        Class<?> oEffectiveClass = o instanceof HibernateProxy ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
+        Class<?> thisEffectiveClass = this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
+        if (thisEffectiveClass != oEffectiveClass) return false;
+        ChangeTrace that = (ChangeTrace) o;
+        return getTraceId() != null && Objects.equals(getTraceId(), that.getTraceId());
+    }
+
+    @Override
+    public final int hashCode() {
+        return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
+    }
+}
