@@ -11,7 +11,6 @@ target/
 .project
 .settings
 .springBeans
-.sts4-cache
 
 ### Configuration ###
 src/main/resources/application.yml
@@ -37,3 +36,4 @@ build/
 
 ### logs ###
 logs/
+src/main/resources/application.yml
