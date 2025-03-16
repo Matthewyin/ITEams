@@ -1,5 +1,3 @@
-
-
 # ITEams - IT设备资产管理系统
 
 ## 项目介绍
@@ -33,72 +31,64 @@ ITEams是一个面向企业的IT设备资产全生命周期管理系统，旨在
 ## 项目目录结构
 
 ```
-ITEams/
+ITEAMS/
 ├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── io/nssa/iteams/
-│   │   │       ├── config/                 # 配置类
-│   │   │       │   ├── CorsConfig.java     # CORS配置
-│   │   │       │   └── WebConfig.java      # Web配置
-│   │   │       ├── controller/             # 控制器层
-│   │   │       │   ├── AssetController.java       # 资产控制器
-│   │   │       │   ├── CategoryController.java    # 分类控制器
-│   │   │       │   ├── LocationController.java    # 位置控制器
-│   │   │       │   ├── ReportController.java      # 报表控制器
-│   │   │       │   ├── UserController.java        # 用户控制器
-│   │   │       │   └── WarrantyController.java    # 保修控制器
-│   │   │       ├── entity/                # 实体类
-│   │   │       │   ├── AssetMaster.java         # 资产主表
-│   │   │       │   ├── ChangeTrace.java         # 变更记录
-│   │   │       │   ├── CategoryMetadata.java    # 分类元数据
-│   │   │       │   ├── SpaceTimeline.java       # 空间时间线
-│   │   │       │   ├── User.java                # 用户
-│   │   │       │   └── WarrantyContract.java    # 保修合同
-│   │   │       ├── exception/             # 异常处理
-│   │   │       │   ├── GlobalExceptionHandler.java   # 全局异常处理器
-│   │   │       │   ├── ResourceNotFoundException.java # 资源不存在异常
-│   │   │       │   └── ValidationException.java      # 验证异常
-│   │   │       ├── repository/            # 数据访问层
-│   │   │       │   ├── AssetMasterRepository.java      # 资产库
-│   │   │       │   ├── CategoryMetadataRepository.java # 分类元数据库
-│   │   │       │   ├── ChangeTraceRepository.java      # 变更记录库
-│   │   │       │   ├── SpaceTimelineRepository.java    # 空间时间线库
-│   │   │       │   ├── UserRepository.java             # 用户库
-│   │   │       │   └── WarrantyContractRepository.java # 保修合同库
-│   │   │       ├── service/               # 服务层
-│   │   │       │   ├── AssetService.java         # 资产服务接口
-│   │   │       │   ├── CategoryService.java      # 分类服务接口
-│   │   │       │   ├── ReportService.java        # 报表服务接口
-│   │   │       │   ├── UserService.java          # 用户服务接口
-│   │   │       │   ├── WarrantyService.java      # 保修服务接口
-│   │   │       │   └── impl/                     # 服务实现
-│   │   │       │       ├── AssetServiceImpl.java
-│   │   │       │       ├── CategoryServiceImpl.java
-│   │   │       │       ├── ReportServiceImpl.java
-│   │   │       │       ├── UserServiceImpl.java
-│   │   │       │       └── WarrantyServiceImpl.java
-│   │   │       ├── dto/                   # 数据传输对象
-│   │   │       │   ├── AssetDTO.java      # 资产DTO
-│   │   │       │   └── ReportDTO.java     # 报表DTO
-│   │   │       ├── util/                  # 工具类
-│   │   │       │   ├── ExcelHelper.java   # Excel工具
-│   │   │       │   └── DateUtils.java     # 日期工具
-│   │   │       └── ITEamsApplication.java # 应用主类
-│   │   └── resources/
-│   │       ├── static/                    # 静态资源
-│   │       ├── templates/                 # 模板
-│   │       ├── application.yaml           # 应用配置
-│   │       └── i18n/                      # 国际化资源
-│   │           └── messages.properties    # 消息资源
-│   └── test/                              # 测试代码
-│       └── java/
-│           └── io/nssa/iteams/
-│               └── ITEamsApplicationTests.java
-├── pom.xml                                # Maven配置
-├── .gitignore                             # Git忽略文件
-├── LICENSE                                # 许可证
-└── README.md                              # 项目说明
+│   └── main/
+│       ├── java/
+│       │   └── com/
+│       │       └── iteams/
+│       │           ├── ITAssetApplication.java
+│       │           ├── config/
+│       │           │   ├── AsyncConfig.java
+│       │           │   ├── JpaConfig.java
+│       │           │   └── WebMvcConfig.java
+│       │           ├── controller/
+│       │           │   ├── AssetController.java
+│       │           │   ├── CategoryController.java
+│       │           │   ├── ImportController.java
+│       │           │   └── WarrantyController.java
+│       │           ├── service/
+│       │           │   ├── AssetService.java
+│       │           │   ├── CategoryService.java
+│       │           │   ├── ImportService.java
+│       │           │   ├── SpaceService.java
+│       │           │   ├── WarrantyService.java
+│       │           │   └── ChangeTraceService.java
+│       │           ├── repository/
+│       │           │   ├── AssetRepository.java
+│       │           │   ├── CategoryRepository.java
+│       │           │   ├── SpaceRepository.java
+│       │           │   ├── WarrantyRepository.java
+│       │           │   └── ChangeTraceRepository.java
+│       │           ├── model/
+│       │           │   ├── entity/
+│       │           │   │   ├── AssetMaster.java
+│       │           │   │   ├── CategoryMetadata.java
+│       │           │   │   ├── SpaceTimeline.java
+│       │           │   │   ├── WarrantyContract.java
+│       │           │   │   └── ChangeTrace.java
+│       │           │   ├── dto/
+│       │           │   │   ├── AssetDTO.java
+│       │           │   │   ├── ImportResultDTO.java
+│       │           │   │   └── ImportProgressDTO.java
+│       │           │   └── vo/
+│       │           │       ├── ApiResponse.java
+│       │           │       └── ImportStatisticsVO.java
+│       │           └── util/
+│       │               ├── excel/
+│       │               │   ├── ExcelImporter.java
+│       │               │   ├── ExcelParser.java
+│       │               │   └── RowProcessor.java
+│       │               ├── Constants.java
+│       │               └── UuidGenerator.java
+│       └── resources/
+│           ├── application.yml
+│           ├── db/
+│           │   └── migration/
+│           │       ├── V1__Create_Base_Tables.sql
+│           │       └── V2__Create_Indexes.sql
+│           └── templates/
+│               └── import_template.xlsx
 ```
 
 ## 核心功能
@@ -138,7 +128,7 @@ ITEams/
 1. **克隆项目**
 ```
 git clone https://github.com/nssa-io/ITEams.git
-   cd ITEams
+cd ITEams
 ```
 
 2. **配置数据库**
@@ -148,7 +138,7 @@ git clone https://github.com/nssa-io/ITEams.git
 3. **构建与运行**
 ```
 mvn clean install
-   java -jar target/ITEams-0.0.1-SNAPSHOT.jar
+java -jar target/ITEams-0.0.1-SNAPSHOT.jar
 ```
 
 4. **访问应用**
@@ -181,14 +171,11 @@ http://localhost:8080/api/swagger-ui.html
 
 1. Fork 本仓库
 2. 创建特性分支：`git checkout -b feature/amazing-feature`
-3. 提交更改：`git commit -m 'Add some amazing feature'`
+3. 提交更改：`git commit -m '添加新功能'`
 4. 推送到分支：`git push origin feature/amazing-feature`
 5. 提交Pull Request
 
+
 ## 许可证
 
-本项目采用 MIT 许可证 
-
----
-
-© 2025 netc2c. All Rights Reserved.
+本项目采用 MIT 许可证 - 详情请参阅 LICENSE 文件

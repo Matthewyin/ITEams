@@ -1,0 +1,79 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /iteams
+  compression:
+    enabled: true
+
+spring:
+  application:
+    name: it-asset-management
+  
+  # 数据源配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/iteams_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: h3c.com123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+  
+  # JPA配置
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    hibernate:
+      ddl-auto: update  # 设置为update，让Hibernate自动更新表结构
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 50
+        hbm2ddl:
+          auto: update
+          import_files: classpath:db/schema.sql,classpath:db/data.sql
+          import_files_sql_extractor: org.hibernate.tool.hbm2ddl.MultipleLinesSqlCommandExtractor
+  
+  # 文件上传配置
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 15MB
+      file-size-threshold: 2MB
+  
+  # 异步任务执行器
+  task:
+    execution:
+      pool:
+        core-size: 5
+        max-size: 10
+        queue-capacity: 25
+        keep-alive: 60s
+      thread-name-prefix: async-task-
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.iteams: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  file:
+    name: logs/iteams.log
+    max-size: 10MB
+    max-history: 30
+
+# 自定义配置
+iteams:
+  import:
+    template-path: classpath:templates/import_template.xlsx
+    batch-size: 100
+    keep-days: 30  # 导入历史保留天数
+  security:
+    jwt:
+      secret-key: Y8wgLO3fK9z7tXRqPNbmJHvD6QpVU4jA
+      token-validity-in-seconds: 86400
+      token-validity-in-seconds-for-remember-me: 2592000 

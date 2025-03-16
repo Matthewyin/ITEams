@@ -1,0 +1,35 @@
+package com.iteams.service;
+
+import com.iteams.model.dto.ImportProgressDTO;
+import com.iteams.model.dto.ImportResultDTO;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+
+/**
+ * Excel导入服务接口
+ */
+public interface ImportService {
+
+    /**
+     * 异步导入Excel文件，处理进度跟踪
+     * @param file Excel文件
+     * @return 导入任务ID
+     * @throws IOException 文件处理异常
+     */
+    String importExcelAsync(MultipartFile file) throws IOException;
+
+    /**
+     * 获取导入进度
+     * @param taskId 任务ID
+     * @return 导入进度DTO
+     */
+    ImportProgressDTO getImportProgress(String taskId);
+
+    /**
+     * 获取导入结果统计
+     * @param batchId 批次ID
+     * @return 导入结果DTO
+     */
+    ImportResultDTO getImportResult(String batchId);
+} 
