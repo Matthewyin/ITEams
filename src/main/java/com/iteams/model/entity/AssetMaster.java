@@ -27,7 +27,7 @@ public class AssetMaster {
     @Column(length = 32, nullable = false, unique = true)
     private String assetNo;
 
-    @Column(length = 255, nullable = false)
+    @Column(nullable = false)
     private String assetName;
 
     @Enumerated(EnumType.STRING)

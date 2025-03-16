@@ -10,9 +10,9 @@ import java.util.Optional;
 @Repository
 public interface SpaceRepository extends JpaRepository<SpaceTimeline, Long> {
     
-    List<SpaceTimeline> findByAssetId(Long assetId);
+    List<SpaceTimeline> findByAsset_AssetId(Long assetId);
     
-    Optional<SpaceTimeline> findByAssetIdAndIsCurrentTrue(Long assetId);
+    Optional<SpaceTimeline> findByAsset_AssetIdAndIsCurrentTrue(Long assetId);
     
-    List<SpaceTimeline> findByAssetIdOrderByValidFromDesc(Long assetId);
+    List<SpaceTimeline> findByAsset_AssetIdOrderByValidFromDesc(Long assetId);
 } 

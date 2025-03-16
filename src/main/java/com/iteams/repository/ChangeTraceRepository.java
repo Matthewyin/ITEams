@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface ChangeTraceRepository extends JpaRepository<ChangeTrace, Long> {
     
-    List<ChangeTrace> findByAssetId(Long assetId);
+    List<ChangeTrace> findByAsset_AssetId(Long assetId);
     
-    List<ChangeTrace> findByAssetIdOrderByOperatedAtDesc(Long assetId);
+    List<ChangeTrace> findByAsset_AssetIdOrderByOperatedAtDesc(Long assetId);
 } 

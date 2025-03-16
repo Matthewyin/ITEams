@@ -10,9 +10,9 @@ import java.util.Optional;
 @Repository
 public interface WarrantyRepository extends JpaRepository<WarrantyContract, Long> {
     
-    List<WarrantyContract> findByAssetId(Long assetId);
+    List<WarrantyContract> findByAsset_AssetId(Long assetId);
     
-    Optional<WarrantyContract> findByAssetIdAndIsActiveTrue(Long assetId);
+    Optional<WarrantyContract> findByAsset_AssetIdAndIsActiveTrue(Long assetId);
     
-    List<WarrantyContract> findByAssetIdOrderByEndDateDesc(Long assetId);
+    List<WarrantyContract> findByAsset_AssetIdOrderByEndDateDesc(Long assetId);
 } 
