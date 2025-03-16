@@ -127,7 +127,7 @@ ITEAMS/
 
 1. **克隆项目**
 ```
-git clone https://github.com/nssa-io/ITEams.git
+git clone https://github.com/Matthewyin/ITEams.git
 cd ITEams
 ```
 
