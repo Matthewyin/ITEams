@@ -1,133 +1,291 @@
-# Excel资产导入功能实现思路
+# Excel资产导入功能实现思路 (实际实现版本)
 
-针对您需要实现的Excel资产导入功能，我将从以下几个方面提供思路：
+针对Excel资产导入功能，我们采用以下方案设计和实现：
 
 ## 1. 整体架构设计
 
 采用分层架构设计这个功能：
 
-- **Controller层**：接收前端上传的Excel文件
-- **Service层**：处理Excel文件解析与数据验证逻辑
-- **Repository层**：持久化处理后的资产数据
+- **Controller层**：接收前端上传的Excel文件，返回导入任务ID
+- **Service层**：处理Excel文件解析与数据验证逻辑，执行异步处理
+- **Repository层**：持久化处理后的资产数据，支持批量操作
 
 ## 2. 技术选型
 
 ### Excel解析技术
 
-- Apache POI
+- Apache POI：功能完整的Excel处理库
+- 自定义包装类：ExcelParser和RowProcessor接口提供流式处理
 
-   或 
+### 数据处理策略
 
-  EasyExcel
-
-  （阿里开源的基于POI的封装库）
-
-  - POI功能完整，但API较复杂
-  - EasyExcel更轻量级，性能更好，尤其适合大文件处理
-
-### 批量数据处理
-
-- 使用Spring批处理（Spring Batch）或手动分批处理大量数据
-- 事务管理确保数据一致性
+- 异步处理：使用Spring的@Async注解实现异步任务处理
+- 任务状态跟踪：使用内存状态映射表记录导入进度
+- 事务管理：确保每行数据处理的原子性
 
 ## 3. 功能实现步骤
 
 ### 3.1 文件上传接收
 
-1. 创建专门的文件上传接口Controller
-2. 使用`MultipartFile`接收前端上传的Excel文件
-3. 进行基本文件验证（文件类型、大小等）
+```java
+@PostMapping("/import")
+public ResponseEntity<Map<String, String>> importExcel(@RequestParam("file") MultipartFile file) {
+    try {
+        String taskId = importService.importExcelAsync(file).get();
+        return ResponseEntity.ok(Map.of("taskId", taskId));
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", e.getMessage()));
+    }
+}
+```
 
 ### 3.2 Excel文件解析
 
-1. 读取Excel表头，验证表头是否符合预期格式
-2. 将Excel数据行映射到Java对象（可以创建专门的DTO对象）
-3. 处理各种数据类型转换，如日期格式、数字格式等
+1. 封装Excel解析逻辑到专用的ExcelParser类
+2. 使用RowProcessor接口处理每一行数据
+3. 构建内部类AssetRowProcessor实现接口方法
 
-### 3.3 数据验证与转换
+```java
+public interface RowProcessor {
+    boolean processRow(Map<String, Object> rowData, int rowIndex);
+}
+```
 
-1. 对必填字段进行验证
-2. 进行数据格式验证（如日期格式、数字格式等）
-3. 验证业务规则（如资产编号唯一性、外键关联有效性等）
-4. 转换为实体对象（如从导入的DTO转为`AssetMaster`实体）
+### 3.3 数据验证与去重
 
-### 3.4 数据持久化
+实现了多层次的数据验证和去重逻辑：
 
-1. 根据业务需求决定是完全覆盖还是增量更新
-2. 对于大批量数据，考虑使用批处理方式提高效率
-3. 处理可能的数据冲突（如资产编号重复等）
+1. **行级数据指纹**
+   ```java
+   // 生成行数据的哈希值用于去重
+   private String generateRowHash(Map<String, Object> rowData) {
+       String assetNo = getStringOrNull(rowData.get("资产编号"));
+       String assetName = getStringOrNull(rowData.get("资产名称"));
+       String serialNo = getStringOrNull(rowData.get("序列号"));
+       
+       String data = assetNo + "|" + assetName + "|" + serialNo;
+       MessageDigest md = MessageDigest.getInstance("SHA-256");
+       // ... 生成哈希值
+   }
+   ```
 
-### 3.5 异常处理与反馈
+2. **重复资产检查**
+   ```java
+   // 检查是否已存在相同的数据指纹
+   Optional<AssetMaster> existingAsset = assetRepository.findByExcelRowHash(rowHash);
+   if (existingAsset.isPresent()) {
+       log.info("跳过重复数据: {}", rowData.get("资产编号"));
+       return true; // 跳过已导入的行，但视为成功
+   }
+   ```
 
-1. 记录并汇总导入过程中的错误
-2. 提供详细的错误反馈，如哪一行哪个字段有问题
-3. 考虑是否支持部分导入成功的情况
+3. **维保合同号去重**
+   ```java
+   // 检查是否已存在相同合同号的维保记录
+   String contractNo = warranty.getContractNo();
+   Optional<WarrantyContract> existingWarranty = warrantyService.findByContractNo(contractNo);
+   
+   if (existingWarranty.isPresent()) {
+       // 如果已存在，则更新现有记录而不是创建新记录
+       WarrantyContract existing = existingWarranty.get();
+       // 更新现有记录的字段
+       existing.setStartDate(warranty.getStartDate());
+       existing.setEndDate(warranty.getEndDate());
+       // ... 更新其他字段
+       
+       savedWarranty = warrantyService.saveWarranty(existing);
+       log.info("更新已存在的维保合约: {}", contractNo);
+   } else {
+       // 如果不存在，则设置资产关联并保存新记录
+       warranty.setAsset(savedAsset);
+       savedWarranty = warrantyService.saveWarranty(warranty);
+   }
+   ```
 
-## 4. 具体实现要点
+### 3.4 优化实体保存顺序
 
-### 4.1 数据映射关系
+为解决JPA级联保存中的循环依赖问题，采用特定的保存顺序：
 
-建立Excel表头与实体类字段的映射关系，例如：
+```java
+// 1. 先保存资产主记录 - 不设置关联关系
+// 移除关联，避免Hibernate尝试级联保存未持久化的对象
+asset.setSpace(null);
+asset.setWarranty(null);
+AssetMaster savedAsset = assetRepository.save(asset);
 
-- "资产编号" → `assetNo`
-- "资产名称" → `assetName`
-- "资产分类" → `assetCategory` 等等
+// 2. 再保存关联实体
+// 现在可以安全地保存空间记录，因为AssetMaster已经持久化
+currentSpace.setAsset(savedAsset);
+SpaceTimeline savedSpace = spaceService.saveSpace(currentSpace);
 
-### 4.2 复杂字段处理
+// 3. 最后更新资产记录中的空间引用
+savedAsset.setSpace(savedSpace);
+assetRepository.save(savedAsset);
+```
 
-一些特殊字段可能需要额外处理：
+### 3.5 多格式日期处理
 
-- 日期字段需要进行格式转换
-- 分类字段可能需要查询或创建对应的分类对象
-- 状态字段需要映射到枚举值
+支持多种常见日期格式的自动识别和解析：
 
-### 4.3 分批处理
+```java
+// 辅助方法：安全地解析日期
+private LocalDate parseDate(Object value) {
+    if (value == null) return null;
+    
+    try {
+        if (value instanceof Date) {
+            return ((Date) value).toInstant()
+                    .atZone(TimeZone.getDefault().toZoneId())
+                    .toLocalDate();
+        } else if (value instanceof String) {
+            String strValue = (String) value;
+            if (strValue.trim().isEmpty()) return null;
+            
+            // 支持多种日期格式
+            DateTimeFormatter[] formatters = new DateTimeFormatter[] {
+                DATE_FORMATTER,  // yyyy-MM-dd
+                DateTimeFormatter.ofPattern("yyyy/MM/dd"),  // yyyy/MM/dd
+                DateTimeFormatter.ofPattern("dd/MM/yyyy"),  // dd/MM/yyyy
+                DateTimeFormatter.ofPattern("MM/dd/yyyy"),  // MM/dd/yyyy
+                DateTimeFormatter.ofPattern("yyyy年MM月dd日")  // 中文格式
+            };
+            
+            // 尝试所有支持的格式
+            for (DateTimeFormatter formatter : formatters) {
+                try {
+                    return LocalDate.parse(strValue, formatter);
+                } catch (Exception e) {
+                    // 继续尝试下一种格式
+                }
+            }
+            
+            // 所有格式都失败，记录日志
+            log.warn("无法解析日期 '{}' 为任何支持的格式", strValue);
+        }
+    } catch (Exception e) {
+        log.warn("日期解析失败: {}", value);
+    }
+    
+    return null;
+}
+```
 
-为了避免内存溢出和提高性能：
+### 3.6 变更记录自动化
 
-- 使用流式读取Excel，而非一次性加载
-- 批量保存数据，如每500条执行一次批量插入
-- 考虑并行处理可能性（注意事务边界）
+自动记录各类资产变更，提供完整变更历史：
 
-### 4.4 事务管理
+```java
+// 记录空间变更
+private void recordSpaceChange(AssetMaster asset, SpaceTimeline oldSpace, SpaceTimeline newSpace) {
+    try {
+        // 构建变更差异JSON
+        Map<String, Object> before = new HashMap<>();
+        before.put("data_center", oldSpace.getDataCenter());
+        before.put("room_name", oldSpace.getRoomName());
+        before.put("cabinet", oldSpace.getCabinetNo());
+        before.put("u_position", oldSpace.getUPosition());
+        
+        Map<String, Object> after = new HashMap<>();
+        after.put("data_center", newSpace.getDataCenter());
+        after.put("room_name", newSpace.getRoomName());
+        after.put("cabinet", newSpace.getCabinetNo());
+        after.put("u_position", newSpace.getUPosition());
+        
+        Map<String, Object> delta = new HashMap<>();
+        delta.put("field", "space");
+        delta.put("before", before);
+        delta.put("after", after);
+        
+        String deltaJson = objectMapper.writeValueAsString(delta);
+        
+        // 创建变更记录
+        ChangeTrace change = new ChangeTrace();
+        change.setAsset(asset);
+        change.setChangeType(ChangeTrace.ChangeType.SPACE);
+        change.setDeltaSnapshot(deltaJson);
+        change.setOperatedBy("EXCEL_IMPORT");
+        
+        changeTraceService.saveChange(change);
+        
+    } catch (Exception e) {
+        log.error("记录变更失败", e);
+    }
+}
+```
 
-- 确保每批数据的原子性
-- 处理导入失败的回滚策略
+## 4. 导入进度跟踪
 
-## 5. 性能与安全考虑
+实现了完整的导入进度跟踪系统：
 
-### 5.1 性能优化
+```java
+@GetMapping("/progress/{taskId}")
+public ResponseEntity<ImportProgressDTO> getImportProgress(@PathVariable String taskId) {
+    ImportProgressDTO progress = importService.getImportProgress(taskId);
+    if (progress == null) {
+        return ResponseEntity.notFound().build();
+    }
+    return ResponseEntity.ok(progress);
+}
+```
 
-- 使用批量SQL操作而非逐条插入
-- 对于大文件，考虑异步处理
-- 临时关闭自动索引更新等优化手段
+导入进度DTO对象：
 
-### 5.2 安全措施
+```java
+public class ImportProgressDTO {
+    private String taskId;
+    private String state;
+    private double progress;
+    private int totalRows;
+    private int processedRows;
+    private int successRows;
+    private int failedRows;
+    private List<String> errors;
+    private String error;
+}
+```
 
-- 验证上传文件的MIME类型
-- 限制文件大小
-- 防止SQL注入攻击
+## 5. 导入结果统计
 
-## 6. 用户体验增强
+完成导入后提供结果统计信息：
 
-### 6.1 导入进度反馈
+```java
+@GetMapping("/result/{batchId}")
+public ResponseEntity<ImportResultDTO> getImportResult(@PathVariable String batchId) {
+    ImportResultDTO result = importService.getImportResult(batchId);
+    return ResponseEntity.ok(result);
+}
+```
 
-- 对于大文件，可考虑实时进度反馈（如WebSocket）
+## 6. 实际优化经验
 
-### 6.2 导入结果报告
+通过实际实现，我们发现了并解决了以下关键问题：
 
-- 提供详细的导入结果统计（成功数、失败数等）
-- 支持导出导入错误记录，方便用户修正
+1. **JPA级联保存问题**
+   - 避免双向关联的循环引用问题
+   - 采用先保存主实体，再保存关联实体的方式
 
-### 6.3 模板下载
+2. **并发处理考量**
+   - 使用批次ID标记每次导入操作
+   - 异步处理大量数据，不阻塞用户界面
 
-- 提供标准导入模板下载功能
-- 在模板中包含填写说明与示例
+3. **数据一致性保障**
+   - 使用事务确保每行数据处理的原子性
+   - 实现合同号去重机制，优先更新现有合同
 
-## 7. 可扩展性考虑
+4. **容错性设计**
+   - 记录每一行的处理状态和错误信息
+   - 单行错误不影响整体导入过程
 
-- 设计允许将来增加新字段
-- 使用配置驱动的方式定义字段映射，减少代码修改
-- 考虑支持多种文件格式（如CSV）
+5. **效率优化**
+   - 使用SHA-256哈希快速判断重复
+   - 批量提交减少数据库写入次数
 
-这个思路综合考虑了功能实现、技术选型、性能优化和用户体验等多个方面。实际实现时，可以根据项目的具体情况和需求进行调整和细化。
+## 7. 未来优化方向
+
+基于当前实现，未来可考虑的优化方向：
+
+1. 使用消息队列替代内存中的导入队列，提高可靠性
+2. 实现基于WebSocket的实时进度推送
+3. 添加可配置的字段映射，支持多种Excel模板
+4. 增加并行处理能力，加速大文件导入
