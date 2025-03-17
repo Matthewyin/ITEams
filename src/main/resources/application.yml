@@ -1,67 +1,95 @@
+# =============================================
+# IT资产管理系统应用配置文件
+# 包含：服务器、数据库、JPA、任务执行器和安全配置
+# =============================================
+
 server:
-  port: 8080
+  port: 8080                        # 应用服务端口号
   servlet:
-    context-path: /
+    context-path: /                 # 应用上下文路径，表示根路径
   compression:
-    enabled: true
+    enabled: true                   # 启用HTTP响应压缩，减少网络传输量
 
 spring:
   application:
-    name: it-asset-management
+    name: it-asset-management       # 应用名称，用于日志和监控识别
   
   # 数据源配置
+  # 定义与MySQL数据库的连接参数和连接池设置
   datasource:
     url: jdbc:mysql://localhost:3306/iteams_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: root
-    password: h3c.com123
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
+                                    # 数据库连接URL：
+                                    # - 使用Unicode编码支持中文
+                                    # - 使用UTF-8字符集
+                                    # - 禁用SSL连接（仅在测试环境，生产应启用）
+                                    # - 设置时区为上海
+                                    # - 允许公钥检索用于安全连接
+    username: root                  # 数据库用户名
+    password: h3c.com123            # 数据库密码（生产环境应使用加密配置）
+    driver-class-name: com.mysql.cj.jdbc.Driver  # MySQL 8.0+驱动类
+    hikari:                         # Hikari连接池配置，Spring Boot默认连接池
+      maximum-pool-size: 20         # 最大连接数，根据并发量调整
+      minimum-idle: 5               # 最小空闲连接数
+      connection-timeout: 30000     # 连接超时时间（毫秒）
   
   # JPA配置
+  # Java持久层API配置，定义ORM行为和数据库交互方式
   jpa:
-    database-platform: org.hibernate.dialect.MySQLDialect
+    database-platform: org.hibernate.dialect.MySQLDialect  # 数据库方言，适用于MySQL 8.0+
     hibernate:
-      ddl-auto: update  # 设置为update，让Hibernate自动更新表结构
-    show-sql: false  # 关闭控制台SQL输出，使用logback配置
+      ddl-auto: update              # 自动创建/更新表结构：
+                                    # - update: 根据实体类更新表结构，保留数据
+                                    # - create: 每次启动删除并创建表
+                                    # - validate: 仅验证表结构，不更改
+                                    # - none: 不执行任何操作
+    show-sql: false                 # 关闭控制台SQL输出，使用logback配置代替
     properties:
       hibernate:
-        format_sql: true
+        format_sql: true            # 格式化SQL日志输出，提高可读性
         jdbc:
-          batch_size: 50
+          batch_size: 50            # JDBC批处理大小，提高批量操作性能
         hbm2ddl:
-          auto: update
+          auto: update              # 与上面的ddl-auto一致，冗余配置
           import_files: classpath:db/schema.sql,classpath:db/data.sql
+                                    # 启动时导入的SQL脚本文件：
+                                    # - schema.sql: 表结构定义
+                                    # - data.sql: 初始数据导入
           import_files_sql_extractor: org.hibernate.tool.hbm2ddl.MultipleLinesSqlCommandExtractor
+                                    # SQL提取器，支持多行SQL语句（如存储过程）
   
   # 文件上传配置
+  # 用于限制Excel导入文件的大小和请求参数
   servlet:
     multipart:
-      enabled: true
-      max-file-size: 10MB
-      max-request-size: 15MB
-      file-size-threshold: 2MB
+      enabled: true                 # 启用文件上传功能
+      max-file-size: 10MB           # 单个文件最大大小（10MB）
+      max-request-size: 15MB        # 请求总体积最大大小（15MB）
+      file-size-threshold: 2MB      # 文件大小阈值，超过后写入磁盘临时文件
   
   # 异步任务执行器
+  # 用于处理后台任务，如Excel导入和数据处理
   task:
     execution:
       pool:
-        core-size: 5
-        max-size: 10
-        queue-capacity: 25
-        keep-alive: 60s
-      thread-name-prefix: async-task-
+        core-size: 5                # 核心线程数，常驻线程数量
+        max-size: 10                # 最大线程数，高峰期最大线程数
+        queue-capacity: 25          # 任务队列容量，超过后创建新线程
+        keep-alive: 60s             # 线程空闲存活时间，超时回收
+      thread-name-prefix: async-task-  # 线程名前缀，用于日志区分
 
-# 自定义配置
+# 自定义配置项
+# 项目特定的参数配置
 iteams:
   import:
     template-path: classpath:templates/import_template.xlsx
-    batch-size: 100
-    keep-days: 30  # 导入历史保留天数
+                                    # Excel导入模板文件路径
+    batch-size: 100                 # 每批处理的记录数，用于大批量导入优化
+    keep-days: 30                   # 导入历史保留天数，过期自动清理
   security:
     jwt:
       secret-key: Y8wgLO3fK9z7tXRqPNbmJHvD6QpVU4jA
+                                    # JWT密钥，用于生成和验证令牌（生产环境应加密保存）
       token-validity-in-seconds: 86400
-      token-validity-in-seconds-for-remember-me: 2592000 
+                                    # 令牌有效期，单位秒（24小时）
+      token-validity-in-seconds-for-remember-me: 2592000
+                                    # "记住我"选项的令牌有效期（30天）

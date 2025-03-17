@@ -15,6 +15,7 @@ import com.iteams.util.excel.ExcelParser;
 import com.iteams.util.excel.RowProcessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,7 @@ public class ImportServiceImpl implements ImportService {
     private final WarrantyService warrantyService;
     private final ChangeTraceService changeTraceService;
     private final ObjectMapper objectMapper;
+    private final CategoryRepository categoryRepository;
 
     /**
      * 异步导入Excel文件，处理进度跟踪
@@ -110,6 +112,11 @@ public class ImportServiceImpl implements ImportService {
         @Transactional
         public boolean processRow(Map<String, Object> rowData, int rowIndex) {
             try {
+                // 0. 提前验证必填字段，避免SQL错误
+                if (!validateRequiredFields(rowData, rowIndex)) {
+                    return false;
+                }
+                
                 // 1. 生成数据指纹，防止重复导入
                 String rowHash = generateRowHash(rowData);
                 
@@ -125,21 +132,41 @@ public class ImportServiceImpl implements ImportService {
                 String level2Category = getStringOrNull(rowData.get("二级分类"));
                 String level3Category = getStringOrNull(rowData.get("三级分类"));
                 
+                // 如果一级分类为空，使用默认分类
+                if (level1Category == null || level1Category.trim().isEmpty()) {
+                    level1Category = "未分类";
+                    level2Category = "";
+                    level3Category = "";
+                    log.info("使用默认分类'未分类'，行: {}", rowIndex);
+                }
+                
                 Map<String, Object> categoryMap = new HashMap<>();
                 categoryMap.put("l1", level1Category);
-                categoryMap.put("l2", level2Category);
-                categoryMap.put("l3", level3Category);
+                categoryMap.put("l2", level2Category != null ? level2Category : "");
+                categoryMap.put("l3", level3Category != null ? level3Category : "");
                 
                 // 使用字符串分类名称进行验证
                 if (!categoryService.validateCategoryPathByName(level1Category, level2Category, level3Category)) {
                     log.warn("分类路径验证失败: {}/{}/{}, 行: {}", level1Category, level2Category, level3Category, rowIndex);
-                    // 继续处理，不返回false以确保导入可继续
+                    // 预先创建分类
+                    ensureCategoryExists(level1Category, level2Category, level3Category);
                 }
                 
                 // 3. 创建资产主记录
                 AssetMaster asset = new AssetMaster();
                 asset.setAssetUuid(UuidGenerator.generateAssetUuid());
-                asset.setAssetNo(getStringOrNull(rowData.get("资产编号")));
+                
+                // 资产编号必填，已在validateRequiredFields中验证
+                String assetNo = getStringOrNull(rowData.get("资产编号"));
+                
+                // 检查资产编号是否已存在
+                Optional<AssetMaster> existingByAssetNo = assetRepository.findByAssetNo(assetNo);
+                if (existingByAssetNo.isPresent()) {
+                    log.warn("资产编号已存在，跳过: {}, 行: {}", assetNo, rowIndex);
+                    return false;
+                }
+                
+                asset.setAssetNo(assetNo);
                 asset.setAssetName(getStringOrNull(rowData.get("资产名称")));
                 
                 // 处理资产状态
@@ -167,61 +194,103 @@ public class ImportServiceImpl implements ImportService {
                 // 移除关联，避免Hibernate尝试级联保存未持久化的对象
                 asset.setSpace(null);
                 asset.setWarranty(null);
-                AssetMaster savedAsset = assetRepository.save(asset);
+                AssetMaster savedAsset;
+                try {
+                    savedAsset = assetRepository.save(asset);
+                } catch (DataIntegrityViolationException e) {
+                    log.error("保存资产记录时违反数据完整性约束: {}, 行: {}", e.getMessage(), rowIndex);
+                    return false;
+                }
                 
                 // 7. 再保存关联实体
-                // 现在可以安全地保存空间记录，因为AssetMaster已经持久化
-                currentSpace.setAsset(savedAsset);
-                SpaceTimeline savedSpace = spaceService.saveSpace(currentSpace);
+                SpaceTimeline savedSpace = null;
+                try {
+                    // 现在可以安全地保存空间记录，因为AssetMaster已经持久化
+                    if (currentSpace != null) {
+                        currentSpace.setAsset(savedAsset);
+                        savedSpace = spaceService.saveSpace(currentSpace);
+                    }
+                } catch (Exception e) {
+                    log.error("保存空间记录时出错: {}, 行: {}", e.getMessage(), rowIndex);
+                    // 继续处理，不返回false
+                }
                 
                 // 8. 更新资产记录中的空间引用
-                savedAsset.setSpace(savedSpace);
-                assetRepository.save(savedAsset);
+                if (savedSpace != null) {
+                    savedAsset.setSpace(savedSpace);
+                    try {
+                        savedAsset = assetRepository.save(savedAsset);
+                    } catch (Exception e) {
+                        log.error("更新资产空间引用时出错: {}, 行: {}", e.getMessage(), rowIndex);
+                    }
+                }
                 
-                // 如果有变更后的空间信息，则创建但标记为非当前
                 if (changedSpace != null) {
-                    changedSpace.setAsset(savedAsset);
-                    spaceService.saveSpace(changedSpace);
-                    
-                    // 记录变更信息
-                    recordSpaceChange(savedAsset, savedSpace, changedSpace);
+                    try {
+                        changedSpace.setAsset(savedAsset);
+                        SpaceTimeline savedChangedSpace = spaceService.saveSpace(changedSpace);
+                        
+                        // 记录变更信息
+                        if (savedSpace != null) {
+                            recordSpaceChange(savedAsset, savedSpace, savedChangedSpace);
+                        }
+                    } catch (Exception e) {
+                        log.error("保存变更空间记录时出错: {}, 行: {}", e.getMessage(), rowIndex);
+                    }
                 }
                 
                 // 保存维保信息
                 if (warranty != null) {
-                    // 检查是否已存在相同合同号的维保记录
-                    String contractNo = warranty.getContractNo();
-                    Optional<WarrantyContract> existingWarranty = warrantyService.findByContractNo(contractNo);
-                    
-                    WarrantyContract savedWarranty;
-                    if (existingWarranty.isPresent()) {
-                        // 如果已存在，则更新现有记录而不是创建新记录
-                        WarrantyContract existing = existingWarranty.get();
-                        // 更新现有记录的字段
-                        existing.setStartDate(warranty.getStartDate());
-                        existing.setEndDate(warranty.getEndDate());
-                        existing.setProvider(warranty.getProvider());
-                        existing.setProviderLevel(warranty.getProviderLevel());
-                        existing.setWarrantyStatus(warranty.getWarrantyStatus());
-                        existing.setAssetLifeYears(warranty.getAssetLifeYears());
-                        existing.setAcceptanceDate(warranty.getAcceptanceDate());
-                        // 保持原有的资产关联，不更新asset字段
-                        
-                        savedWarranty = warrantyService.saveWarranty(existing);
-                        log.info("更新已存在的维保合约: {}", contractNo);
-                    } else {
-                        // 如果不存在，则设置资产关联并保存新记录
-                        warranty.setAsset(savedAsset);
-                        savedWarranty = warrantyService.saveWarranty(warranty);
+                    try {
+                        // 检查是否已存在相同合同号的维保记录
+                        String contractNo = warranty.getContractNo();
+                        if (contractNo != null && !contractNo.trim().isEmpty()) {
+                            Optional<WarrantyContract> existingWarranty = warrantyService.findByContractNo(contractNo);
+                            
+                            WarrantyContract savedWarranty;
+                            if (existingWarranty.isPresent()) {
+                                // 如果已存在，则更新现有记录而不是创建新记录
+                                WarrantyContract existing = existingWarranty.get();
+                                // 更新现有记录的字段
+                                existing.setStartDate(warranty.getStartDate());
+                                existing.setEndDate(warranty.getEndDate());
+                                existing.setProvider(warranty.getProvider());
+                                existing.setProviderLevel(warranty.getProviderLevel());
+                                existing.setWarrantyStatus(warranty.getWarrantyStatus());
+                                existing.setAssetLifeYears(warranty.getAssetLifeYears());
+                                existing.setAcceptanceDate(warranty.getAcceptanceDate());
+                                // 保持原有的资产关联，不更新asset字段
+                                
+                                savedWarranty = warrantyService.saveWarranty(existing);
+                                log.info("更新已存在的维保合约: {}", contractNo);
+                            } else {
+                                // 如果不存在，则设置资产关联并保存新记录
+                                warranty.setAsset(savedAsset);
+                                savedWarranty = warrantyService.saveWarranty(warranty);
+                            }
+                            
+                            // 更新资产记录中的维保引用
+                            savedAsset.setWarranty(savedWarranty);
+                            try {
+                                assetRepository.save(savedAsset);
+                            } catch (Exception e) {
+                                log.error("更新资产维保引用时出错: {}, 行: {}", e.getMessage(), rowIndex);
+                            }
+                        }
+                    } catch (DataIntegrityViolationException e) {
+                        log.error("保存维保记录时违反数据完整性约束: {}, 行: {}", e.getMessage(), rowIndex);
+                        // 继续处理，不返回false
+                    } catch (Exception e) {
+                        log.error("保存维保记录时出错: {}, 行: {}", e.getMessage(), rowIndex);
                     }
-                    
-                    // 更新资产记录中的维保引用
-                    savedAsset.setWarranty(savedWarranty);
-                    assetRepository.save(savedAsset);
                 }
                 
                 // 9. 记录初始状态变更
-                recordInitialState(savedAsset, rowData);
+                try {
+                    recordInitialState(savedAsset, rowData);
+                } catch (Exception e) {
+                    log.error("记录初始状态变更时出错: {}, 行: {}", e.getMessage(), rowIndex);
+                }
                 
                 return true;
                 
@@ -229,6 +298,72 @@ public class ImportServiceImpl implements ImportService {
                 log.error("处理行{}时出错: {}", rowIndex, e.getMessage(), e);
                 return false;
             }
+        }
+        
+        /**
+         * 验证必填字段，确保关键字段不为空
+         */
+        private boolean validateRequiredFields(Map<String, Object> rowData, int rowIndex) {
+            String assetNo = getStringOrNull(rowData.get("资产编号"));
+            String assetName = getStringOrNull(rowData.get("资产名称"));
+            
+            if (assetNo == null || assetNo.trim().isEmpty()) {
+                log.error("资产编号不能为空，行: {}", rowIndex);
+                return false;
+            }
+            
+            if (assetName == null || assetName.trim().isEmpty()) {
+                log.error("资产名称不能为空，行: {}", rowIndex);
+                return false;
+            }
+            
+            return true;
+        }
+        
+        /**
+         * 确保分类存在，如果不存在则创建
+         */
+        private void ensureCategoryExists(String level1, String level2, String level3) {
+            if (level1 == null || level1.trim().isEmpty()) {
+                return;
+            }
+            
+            // 查找或创建一级分类
+            CategoryMetadata l1 = categoryRepository.findByNameAndLevel(level1, (byte) 1)
+                    .orElseGet(() -> {
+                        CategoryMetadata newL1 = new CategoryMetadata();
+                        newL1.setName(level1);
+                        newL1.setLevel((byte) 1);
+                        return categoryRepository.save(newL1);
+                    });
+            
+            if (level2 == null || level2.trim().isEmpty()) {
+                return;
+            }
+            
+            // 查找或创建二级分类
+            CategoryMetadata l2 = categoryRepository.findByNameAndLevel(level2, (byte) 2)
+                    .orElseGet(() -> {
+                        CategoryMetadata newL2 = new CategoryMetadata();
+                        newL2.setName(level2);
+                        newL2.setLevel((byte) 2);
+                        newL2.setParent(l1);
+                        return categoryRepository.save(newL2);
+                    });
+            
+            if (level3 == null || level3.trim().isEmpty()) {
+                return;
+            }
+            
+            // 查找或创建三级分类
+            categoryRepository.findByNameAndLevel(level3, (byte) 3)
+                    .orElseGet(() -> {
+                        CategoryMetadata newL3 = new CategoryMetadata();
+                        newL3.setName(level3);
+                        newL3.setLevel((byte) 3);
+                        newL3.setParent(l2);
+                        return categoryRepository.save(newL3);
+                    });
         }
         
         // 根据字符串状态映射到枚举
@@ -249,38 +384,55 @@ public class ImportServiceImpl implements ImportService {
         
         // 创建空间记录
         private SpaceTimeline createSpaceRecord(Map<String, Object> rowData, AssetMaster asset, boolean isChanged) {
+            // 如果是变更后的空间，使用不同的字段
+            String dcPrefix = isChanged ? "变更后数据中心" : "数据中心";
+            String roomPrefix = isChanged ? "变更后机房" : "机房";
+            String cabinetPrefix = isChanged ? "变更后机柜" : "机柜";
+            String uPositionPrefix = isChanged ? "变更后U位" : "U位";
+            
+            String dataCenter = getStringOrNull(rowData.get(dcPrefix));
+            String roomName = getStringOrNull(rowData.get(roomPrefix));
+            String cabinetNo = getStringOrNull(rowData.get(cabinetPrefix));
+            String uPosition = getStringOrNull(rowData.get(uPositionPrefix));
+            
+            // 如果所有空间信息都为空，则不创建空间记录
+            if ((dataCenter == null || dataCenter.trim().isEmpty()) && 
+                (roomName == null || roomName.trim().isEmpty()) && 
+                (cabinetNo == null || cabinetNo.trim().isEmpty()) && 
+                (uPosition == null || uPosition.trim().isEmpty())) {
+                return null;
+            }
+            
             SpaceTimeline space = new SpaceTimeline();
-            
-            String prefix = isChanged ? "变更后" : "";
-            String dataCenter = getStringOrNull(rowData.get(prefix + "数据中心"));
-            String roomName = getStringOrNull(rowData.get(prefix + "机房名称"));
-            String cabinetNo = getStringOrNull(rowData.get(prefix + "机柜编号"));
-            String uPosition = getStringOrNull(rowData.get(prefix + "U位编号"));
-            String environment = getStringOrNull(rowData.get(prefix + "使用环境"));
-            String keeper = getStringOrNull(rowData.get(prefix + "保管人"));
-            
-            // 构造位置路径
-            StringBuilder locationPathBuilder = new StringBuilder();
-            if (dataCenter != null) locationPathBuilder.append(dataCenter);
-            if (roomName != null) locationPathBuilder.append("/").append(roomName);
-            if (cabinetNo != null) locationPathBuilder.append("/").append(cabinetNo);
-            if (uPosition != null) locationPathBuilder.append("/U").append(uPosition);
-            
             space.setAsset(asset);
-            space.setLocationPath(locationPathBuilder.toString());
-            space.setDataCenter(dataCenter);
-            space.setRoomName(roomName);
-            space.setCabinetNo(cabinetNo);
-            space.setUPosition(uPosition);
-            space.setEnvironment(environment);
-            space.setKeeper(keeper);
-            space.setValidFrom(LocalDateTime.now());
-            space.setIsCurrent(!isChanged); // 如果是变更后的记录，则不是当前记录
+            space.setDataCenter(dataCenter != null ? dataCenter : "");
+            space.setRoomName(roomName != null ? roomName : "");
+            space.setCabinetNo(cabinetNo != null ? cabinetNo : "");
+            space.setUPosition(uPosition != null ? uPosition : "");
             
+            // 拼接位置路径
+            StringBuilder pathBuilder = new StringBuilder();
+            if (dataCenter != null && !dataCenter.trim().isEmpty()) {
+                pathBuilder.append(dataCenter);
+            }
+            if (roomName != null && !roomName.trim().isEmpty()) {
+                if (pathBuilder.length() > 0) pathBuilder.append("/");
+                pathBuilder.append(roomName);
+            }
+            if (cabinetNo != null && !cabinetNo.trim().isEmpty()) {
+                if (pathBuilder.length() > 0) pathBuilder.append("/");
+                pathBuilder.append(cabinetNo);
+            }
+            if (uPosition != null && !uPosition.trim().isEmpty()) {
+                if (pathBuilder.length() > 0) pathBuilder.append("/");
+                pathBuilder.append(uPosition);
+            }
+            
+            space.setLocationPath(pathBuilder.toString());
+            space.setIsCurrent(true);
             return space;
         }
         
-        // 创建维保记录
         private WarrantyContract createWarrantyRecord(Map<String, Object> rowData, AssetMaster asset) {
             String contractNo = getStringOrNull(rowData.get("合同号"));
             if (contractNo == null || contractNo.trim().isEmpty()) {
@@ -356,42 +508,50 @@ public class ImportServiceImpl implements ImportService {
         // 记录初始状态
         private void recordInitialState(AssetMaster asset, Map<String, Object> rowData) {
             try {
-                Map<String, Object> initialData = new HashMap<>();
-                initialData.put("asset_no", asset.getAssetNo());
-                initialData.put("asset_name", asset.getAssetName());
-                initialData.put("status", asset.getCurrentStatus().name());
+                Map<String, Object> data = new HashMap<>();
+                data.put("source", "EXCEL_IMPORT");
+                data.put("batch", importBatch);
+                data.put("import_time", LocalDateTime.now().toString());
                 
-                String initialJson = objectMapper.writeValueAsString(initialData);
+                String deltaJson = objectMapper.writeValueAsString(data);
                 
-                ChangeTrace initialChange = new ChangeTrace();
-                initialChange.setAsset(asset);
-                initialChange.setChangeType(ChangeTrace.ChangeType.INITIAL);
-                initialChange.setDeltaSnapshot(initialJson);
-                initialChange.setOperatedBy(getStringOrNull(rowData.get("创建人")));
+                ChangeTrace change = new ChangeTrace();
+                change.setAsset(asset);
+                change.setChangeType(ChangeTrace.ChangeType.INITIAL);
+                change.setDeltaSnapshot(deltaJson);
+                change.setOperatedBy("EXCEL_IMPORT");
                 
-                changeTraceService.saveChange(initialChange);
+                changeTraceService.saveChange(change);
                 
             } catch (Exception e) {
                 log.error("记录初始状态失败", e);
             }
         }
         
-        // 判断是否有变更后的空间信息
+        // 检查是否有变更的空间信息
         private boolean hasChangeSpaceInfo(Map<String, Object> rowData) {
-            return rowData.get("变更后数据中心") != null || 
-                   rowData.get("变更后机房名称") != null || 
-                   rowData.get("变更后机柜编号") != null || 
-                   rowData.get("变更后U位编号") != null;
+            return rowData.containsKey("变更后数据中心") || rowData.containsKey("变更后机房") || 
+                   rowData.containsKey("变更后机柜") || rowData.containsKey("变更后U位");
         }
         
-        // 生成行数据的哈希值用于去重
         private String generateRowHash(Map<String, Object> rowData) {
             try {
                 String assetNo = getStringOrNull(rowData.get("资产编号"));
                 String assetName = getStringOrNull(rowData.get("资产名称"));
                 String serialNo = getStringOrNull(rowData.get("序列号"));
+                String modelNo = getStringOrNull(rowData.get("型号"));
                 
-                String data = assetNo + "|" + assetName + "|" + serialNo;
+                // 增强哈希计算，加入更多字段，提高唯一性
+                StringBuilder dataBuilder = new StringBuilder();
+                if (assetNo != null) dataBuilder.append(assetNo);
+                dataBuilder.append("|");
+                if (assetName != null) dataBuilder.append(assetName);
+                dataBuilder.append("|");
+                if (serialNo != null) dataBuilder.append(serialNo);
+                dataBuilder.append("|");
+                if (modelNo != null) dataBuilder.append(modelNo);
+                
+                String data = dataBuilder.toString();
                 MessageDigest md = MessageDigest.getInstance("SHA-256");
                 byte[] hash = md.digest(data.getBytes());
                 

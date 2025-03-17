@@ -1,45 +1,66 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  IT资产管理系统日志配置
+  
+  主要功能：
+  1. 配置多级别日志文件，分离不同级别日志
+  2. 控制台输出过滤与格式化
+  3. 文件大小和保留时间控制
+  4. SQL语句单独日志文件记录
+-->
 <configuration>
+    <!-- 全局属性定义，用于日志文件路径和命名 -->
     <property name="LOG_PATH" value="logs" />
     <property name="APP_NAME" value="iteams" />
     
     <!-- 控制台输出 -->
+    <!-- 用于开发环境实时查看日志输出 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
+            <!-- 日志格式: 时间 [线程名] 日志级别 类名 - 日志信息 -->
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
             <charset>UTF-8</charset>
         </encoder>
-        <!-- 只输出INFO级别及以上日志到控制台 -->
+        <!-- 过滤器: 只输出INFO级别及以上日志到控制台，减少开发时控制台干扰 -->
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>INFO</level>
         </filter>
     </appender>
     
-    <!-- 主要日志文件，记录INFO及以上级别 -->
+    <!-- 主要日志文件 -->
+    <!-- 记录INFO及以上级别日志，日常运行记录 -->
     <appender name="MAIN_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 当前活动日志文件路径 -->
         <file>${LOG_PATH}/${APP_NAME}.log</file>
+        <!-- 滚动策略: 基于大小和时间的滚动，防止单个文件过大 -->
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 历史日志存储规则: 日期+索引编号 -->
             <fileNamePattern>${LOG_PATH}/history/${APP_NAME}-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- 单个文件最大10MB -->
             <maxFileSize>10MB</maxFileSize>
+            <!-- 保留30天历史文件 -->
             <maxHistory>30</maxHistory>
+            <!-- 所有日志文件最大总大小3GB -->
             <totalSizeCap>3GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
             <charset>UTF-8</charset>
         </encoder>
-        <!-- 只输出INFO级别及以上日志 -->
+        <!-- 过滤器: 只输出INFO级别及以上日志 -->
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>INFO</level>
         </filter>
     </appender>
     
-    <!-- 错误日志文件，单独记录ERROR级别 -->
+    <!-- 错误日志文件 -->
+    <!-- 单独记录ERROR级别的日志，用于错误监控和告警 -->
     <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/${APP_NAME}-error.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>${LOG_PATH}/history/${APP_NAME}-error-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
+            <!-- 错误日志保留时间更长(60天)，便于问题追溯 -->
             <maxHistory>60</maxHistory>
             <totalSizeCap>2GB</totalSizeCap>
         </rollingPolicy>
@@ -47,7 +68,7 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
             <charset>UTF-8</charset>
         </encoder>
-        <!-- 只输出ERROR级别日志 -->
+        <!-- 精确过滤器: 仅记录ERROR级别日志，提高日志纯度 -->
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
             <level>ERROR</level>
             <onMatch>ACCEPT</onMatch>
@@ -55,7 +76,8 @@
         </filter>
     </appender>
     
-    <!-- 警告日志文件，单独记录WARN级别 -->
+    <!-- 警告日志文件 -->
+    <!-- 单独记录WARN级别的日志，用于潜在问题预警 -->
     <appender name="WARN_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/${APP_NAME}-warn.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
@@ -68,7 +90,7 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
             <charset>UTF-8</charset>
         </encoder>
-        <!-- 只输出WARN级别日志 -->
+        <!-- 精确过滤器: 仅记录WARN级别日志 -->
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
             <level>WARN</level>
             <onMatch>ACCEPT</onMatch>
@@ -76,12 +98,15 @@
         </filter>
     </appender>
     
-    <!-- DEBUG日志文件，单独记录DEBUG级别 -->
+    <!-- 调试日志文件 -->
+    <!-- 记录详细的DEBUG级别日志，仅用于开发调试阶段 -->
     <appender name="DEBUG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/${APP_NAME}-debug.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>${LOG_PATH}/history/${APP_NAME}-debug-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- 调试日志文件允许更大(20MB)，记录更多详情 -->
             <maxFileSize>20MB</maxFileSize>
+            <!-- 调试日志保留时间较短(15天)，减少磁盘占用 -->
             <maxHistory>15</maxHistory>
             <totalSizeCap>5GB</totalSizeCap>
         </rollingPolicy>
@@ -89,7 +114,7 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
             <charset>UTF-8</charset>
         </encoder>
-        <!-- 只输出DEBUG级别日志 -->
+        <!-- 精确过滤器: 仅记录DEBUG级别日志 -->
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
             <level>DEBUG</level>
             <onMatch>ACCEPT</onMatch>
@@ -97,11 +122,13 @@
         </filter>
     </appender>
     
-    <!-- SQL日志文件，记录Hibernate生成的SQL -->
+    <!-- SQL日志文件 -->
+    <!-- 专门记录Hibernate生成的SQL语句，用于性能调优和问题排查 -->
     <appender name="SQL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/${APP_NAME}-sql.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>${LOG_PATH}/history/${APP_NAME}-sql-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- SQL日志文件更大(30MB)，保存完整SQL记录 -->
             <maxFileSize>30MB</maxFileSize>
             <maxHistory>10</maxHistory>
             <totalSizeCap>5GB</totalSizeCap>
@@ -112,29 +139,34 @@
         </encoder>
     </appender>
     
-    <!-- 设置日志级别 -->
+    <!-- 自定义日志级别设置 -->
+    <!-- 为项目包com.iteams设置日志级别为INFO，并关联多个appender -->
+    <!-- additivity=false表示不继承父logger的appender，避免日志重复 -->
     <logger name="com.iteams" level="INFO" additivity="false">
-        <appender-ref ref="CONSOLE" />
-        <appender-ref ref="MAIN_FILE" />
-        <appender-ref ref="ERROR_FILE" />
-        <appender-ref ref="WARN_FILE" />
-        <appender-ref ref="DEBUG_FILE" />
+        <appender-ref ref="CONSOLE" />      <!-- 同时输出到控制台 -->
+        <appender-ref ref="MAIN_FILE" />    <!-- 输出到主日志文件 -->
+        <appender-ref ref="ERROR_FILE" />   <!-- 错误日志单独收集 -->
+        <appender-ref ref="WARN_FILE" />    <!-- 警告日志单独收集 -->
+        <appender-ref ref="DEBUG_FILE" />   <!-- 调试日志单独收集 -->
     </logger>
     
     <!-- SQL日志配置 -->
+    <!-- 记录Hibernate SQL语句，设置为DEBUG级别以捕获SQL -->
     <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
-        <appender-ref ref="SQL_FILE" />
+        <appender-ref ref="SQL_FILE" />     <!-- SQL日志单独收集 -->
     </logger>
     
+    <!-- 记录SQL参数绑定信息，设置为TRACE级别以捕获参数值 -->
     <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
-        <appender-ref ref="SQL_FILE" />
+        <appender-ref ref="SQL_FILE" />     <!-- SQL参数绑定信息单独收集 -->
     </logger>
     
     <!-- 根日志配置 -->
+    <!-- 所有未指定logger的类都使用此配置 -->
     <root level="INFO">
-        <appender-ref ref="CONSOLE" />
-        <appender-ref ref="MAIN_FILE" />
-        <appender-ref ref="ERROR_FILE" />
-        <appender-ref ref="WARN_FILE" />
+        <appender-ref ref="CONSOLE" />      <!-- 默认输出到控制台 -->
+        <appender-ref ref="MAIN_FILE" />    <!-- 输出到主日志文件 -->
+        <appender-ref ref="ERROR_FILE" />   <!-- 错误日志单独收集 -->
+        <appender-ref ref="WARN_FILE" />    <!-- 警告日志单独收集 -->
     </root>
 </configuration> 
