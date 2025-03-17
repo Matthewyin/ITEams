@@ -37,3 +37,7 @@ build/
 ### logs ###
 logs/
 src/test/
+
+### .ds_store ###
+.DS_Store
+
