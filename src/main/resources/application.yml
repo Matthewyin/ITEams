@@ -25,7 +25,7 @@ spring:
                                     # - 设置时区为上海
                                     # - 允许公钥检索用于安全连接
     username: root                  # 数据库用户名
-    password: root            # 数据库密码（生产环境应使用加密配置）
+    password: h3c.com123            # 数据库密码（生产环境应使用加密配置）
     driver-class-name: com.mysql.cj.jdbc.Driver  # MySQL 8.0+驱动类
     hikari:                         # Hikari连接池配置，Spring Boot默认连接池
       maximum-pool-size: 20         # 最大连接数，根据并发量调整
