@@ -36,4 +36,4 @@ build/
 
 ### logs ###
 logs/
-src/main/resources/application.yml
+src/test/
