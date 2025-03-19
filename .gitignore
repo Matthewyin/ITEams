@@ -12,8 +12,6 @@ target/
 .settings
 .springBeans
 
-### Configuration ###
-src/main/resources/application.yml
 
 ### IntelliJ IDEA ###
 .idea

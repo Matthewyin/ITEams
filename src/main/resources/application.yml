@@ -1,6 +1,6 @@
 # =============================================
 # IT资产管理系统应用配置文件
-# 包含：服务器、数据库、JPA、任务执行器和安全配置
+# 包含：服务器、数据库、JPA、认证、任务执行器和安全配置
 # =============================================
 
 server:
@@ -25,7 +25,7 @@ spring:
                                     # - 设置时区为上海
                                     # - 允许公钥检索用于安全连接
     username: root                  # 数据库用户名
-    password: netPA-2025            # 数据库密码（生产环境应使用加密配置）
+    password: h3c.com123            # 数据库密码（生产环境应使用加密配置）
     driver-class-name: com.mysql.cj.jdbc.Driver  # MySQL 8.0+驱动类
     hikari:                         # Hikari连接池配置，Spring Boot默认连接池
       maximum-pool-size: 20         # 最大连接数，根据并发量调整
@@ -34,6 +34,13 @@ spring:
   
   # JPA配置
   # Java持久层API配置，定义ORM行为和数据库交互方式
+  # SQL初始化配置
+  sql:
+    init:
+      mode: always                 # 总是执行初始化脚本
+      schema-locations: classpath:db/init-user.sql  # 初始化脚本位置
+      continue-on-error: true      # 出错时继续执行
+      
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect  # 数据库方言，适用于MySQL 8.0+
     hibernate:
@@ -42,10 +49,11 @@ spring:
                                     # - create: 每次启动删除并创建表
                                     # - validate: 仅验证表结构，不更改
                                     # - none: 不执行任何操作
-    show-sql: false                 # 关闭控制台SQL输出，使用logback配置代替
+    show-sql: true                  # 显示SQL语句，方便开发调试
     properties:
       hibernate:
         format_sql: true            # 格式化SQL日志输出，提高可读性
+        dialect: org.hibernate.dialect.MySQLDialect  # 数据库方言，适用于MySQL 8.0+
         jdbc:
           batch_size: 50            # JDBC批处理大小，提高批量操作性能
         hbm2ddl:
@@ -87,9 +95,26 @@ iteams:
     keep-days: 30                   # 导入历史保留天数，过期自动清理
   security:
     jwt:
-      secret-key: Y8wgLO3fK9z7tXRqPNbmJHvD6QpVU4jA
+      secret-key: eamsSecretKey2025ITAssetManagementSystemSecretKeyForJWT
                                     # JWT密钥，用于生成和验证令牌（生产环境应加密保存）
       token-validity-in-seconds: 86400
                                     # 令牌有效期，单位秒（24小时）
-      token-validity-in-seconds-for-remember-me: 2592000
-                                    # "记住我"选项的令牌有效期（30天）
+      token-validity-in-seconds-for-remember-me: 604800
+                                    # "记住我"选项的令牌有效期（7天）
+
+# JWT配置
+# 用于JWT令牌的生成和验证
+jwt:
+  # JWT密钥（生产环境应使用更复杂的密钥并通过环境变量注入）
+  secret: eamsSecretKey2025ITAssetManagementSystemSecretKeyForJWT
+  # JWT过期时间（24小时，单位：毫秒）
+  expiration: 86400000
+  # 记住我过期时间（7天，单位：毫秒）
+  remember-me-expiration: 604800000
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    org.springframework.security: DEBUG
+    com.iteams: DEBUG
