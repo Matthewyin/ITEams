@@ -20,6 +20,7 @@ ITEams是一个面向企业的IT资产全生命周期管理系统，专注于帮
 - **批量Excel导入**：支持大规模Excel数据导入，自动处理数据关联
 - **维保合同管理**：自动关联资产与维保信息，提供到期提醒
 - **分离的日志系统**：不同级别日志分文件存储，便于问题排查
+- **安全的用户认证**：使用JWT实现的无状态用户认证机制，提供安全可靠的访问控制
 
 ## 🚀 最新更新
 
@@ -27,6 +28,7 @@ ITEams是一个面向企业的IT资产全生命周期管理系统，专注于帮
 - **维保合同去重**：自动检测并合并重复的维保合同记录
 - **分离日志系统**：将DEBUG/INFO/WARN/ERROR日志分开存储，提高可维护性
 - **升级Spring Boot**：从2.7.8升级到3.4.3，提升性能和安全性
+- **增强用户认证**：完善了JWT认证实现，修复了登录验证问题
 
 ## 🧰 技术栈
 
@@ -41,6 +43,8 @@ ITEams是一个面向企业的IT资产全生命周期管理系统，专注于帮
 - **数据验证**：Spring Validation
 - **Excel处理**：Apache POI 5.3.0
 - **日志框架**：SLF4J + Logback
+- **安全框架**：Spring Security
+- **身份认证**：JWT (JSON Web Token)
 - **代码简化**：Lombok
 
 ### 前端技术
@@ -61,42 +65,78 @@ ITEAMS/
 │       ├── java/
 │       │   └── com/
 │       │       └── iteams/
-│       │           ├── ITAssetApplication.java
-│       │           ├── config/
+│       │           ├── ITAssetApplication.java      # 应用程序入口
+│       │           ├── annotation/                  # 自定义注解
+│       │           │   └── OperationLog.java        # 操作日志注解
+│       │           ├── aspect/                      # AOP切面
+│       │           │   └── OperationLogAspect.java  # 操作日志切面
+│       │           ├── config/                      # 配置类
+│       │           │   ├── AuthProviderConfig.java  # 认证提供者配置
+│       │           │   ├── DataInitializer.java     # 数据初始化
+│       │           │   ├── JwtAuthenticationEntryPoint.java # JWT认证入口点
+│       │           │   ├── JwtAuthenticationFilter.java # JWT认证过滤器
+│       │           │   ├── SchedulingConfig.java    # 定时任务配置
+│       │           │   ├── SecurityConfig.java      # 安全配置
 │       │           │   └── WebConfig.java           # CORS和Web配置
-│       │           ├── controller/
-│       │           │   ├── AssetController.java
-│       │           │   ├── CategoryController.java
+│       │           ├── controller/                  # 控制器
+│       │           │   ├── AuthController.java      # 认证控制器
 │       │           │   ├── ImportController.java    # Excel导入处理控制器
-│       │           │   └── WarrantyController.java
-│       │           ├── service/
-│       │           │   ├── AssetService.java
-│       │           │   ├── CategoryService.java     # 分类管理服务接口
-│       │           │   ├── ImportService.java       # Excel导入服务
-│       │           │   ├── SpaceService.java        # 空间位置管理
-│       │           │   ├── WarrantyService.java     # 维保管理
-│       │           │   └── ChangeTraceService.java  # 变更追踪
-│       │           ├── repository/
-│       │           │   ├── AssetRepository.java     # 资产数据访问
-│       │           │   ├── CategoryRepository.java  # 分类数据访问
-│       │           │   ├── SpaceRepository.java     # 空间位置数据访问
-│       │           │   ├── WarrantyRepository.java  # 维保合同数据访问
-│       │           │   └── ChangeTraceRepository.java # 变更记录数据访问
-│       │           ├── model/
-│       │           │   ├── entity/
+│       │           │   ├── OperationLogController.java # 操作日志控制器
+│       │           │   └── PasswordResetController.java # 密码重置控制器
+│       │           ├── model/                       # 数据模型
+│       │           │   ├── dto/                     # 数据传输对象
+│       │           │   │   ├── ApiResponse.java     # 统一API响应
+│       │           │   │   ├── ImportProgressDTO.java # 导入进度
+│       │           │   │   ├── ImportResultDTO.java # 导入结果
+│       │           │   │   ├── LoginRequestDTO.java # 登录请求
+│       │           │   │   ├── LoginResponseDTO.java # 登录响应
+│       │           │   │   ├── OperationLogQuery.java # 操作日志查询
+│       │           │   │   └── UserInfoDTO.java    # 用户信息
+│       │           │   ├── entity/                  # 实体类
 │       │           │   │   ├── AssetMaster.java     # 资产主表实体
 │       │           │   │   ├── CategoryMetadata.java # 分类元数据
+│       │           │   │   ├── ChangeTrace.java     # 变更记录
+│       │           │   │   ├── OperationLog.java    # 操作日志
 │       │           │   │   ├── SpaceTimeline.java   # 空间位置时间线
-│       │           │   │   ├── WarrantyContract.java # 维保合同
-│       │           │   │   └── ChangeTrace.java     # 变更记录
-│       │           │   ├── dto/
-│       │           │   │   ├── AssetDTO.java        # 资产数据传输对象
-│       │           │   │   ├── ImportResultDTO.java # 导入结果
-│       │           │   │   └── ImportProgressDTO.java # 导入进度
-│       │           │   └── vo/
-│       │           │       ├── ApiResponse.java     # 统一API响应格式
-│       │           │       └── ImportStatisticsVO.java # 导入统计视图
-│       │           └── util/
+│       │           │   │   ├── User.java            # 用户实体
+│       │           │   │   └── WarrantyContract.java # 维保合同
+│       │           │   ├── enums/                   # 枚举类型
+│       │           │   │   ├── ModuleType.java      # 模块类型
+│       │           │   │   ├── OperationType.java   # 操作类型
+│       │           │   │   └── StatusType.java      # 状态类型
+│       │           │   └── vo/                      # 视图对象
+│       │           │       ├── ApiResponse.java     # 统一API响应视图
+│       │           │       ├── OperationLogDetailVO.java # 操作日志详情
+│       │           │       ├── OperationLogStatsVO.java # 操作日志统计
+│       │           │       └── OperationLogVO.java  # 操作日志视图
+│       │           ├── repository/                  # 数据访问层
+│       │           │   ├── AssetRepository.java     # 资产数据访问
+│       │           │   ├── CategoryRepository.java  # 分类数据访问
+│       │           │   ├── ChangeTraceRepository.java # 变更记录数据访问
+│       │           │   ├── OperationLogRepository.java # 操作日志数据访问
+│       │           │   ├── SpaceRepository.java     # 空间位置数据访问
+│       │           │   ├── UserRepository.java      # 用户数据访问
+│       │           │   └── WarrantyRepository.java  # 维保合同数据访问
+│       │           ├── service/                     # 服务层
+│       │           │   ├── AuthService.java         # 认证服务接口
+│       │           │   ├── CategoryService.java     # 分类管理服务接口
+│       │           │   ├── ChangeTraceService.java  # 变更追踪服务
+│       │           │   ├── ImportService.java       # Excel导入服务
+│       │           │   ├── OperationLogService.java # 操作日志服务
+│       │           │   ├── SpaceService.java        # 空间位置管理
+│       │           │   └── WarrantyService.java     # 维保管理
+│       │           ├── service/impl/                # 服务实现
+│       │           │   ├── AuthServiceImpl.java     # 认证服务实现
+│       │           │   ├── CategoryServiceImpl.java # 分类服务实现
+│       │           │   ├── ChangeTraceServiceImpl.java # 变更追踪实现
+│       │           │   ├── ImportServiceImpl.java   # 导入服务实现
+│       │           │   ├── OperationLogServiceImpl.java # 日志服务实现
+│       │           │   ├── SpaceServiceImpl.java    # 空间服务实现
+│       │           │   ├── UserDetailsServiceImpl.java # 用户详情服务
+│       │           │   └── WarrantyServiceImpl.java # 维保服务实现
+│       │           ├── task/                        # 定时任务
+│       │           │   └── LogArchiveTask.java      # 日志归档任务
+│       │           └── util/                        # 工具类
 │       │               ├── excel/
 │       │               │   ├── ExcelParser.java     # Excel解析器
 │       │               │   └── RowProcessor.java    # 行处理接口
@@ -167,12 +207,134 @@ ITEAMS/
 - 错误与警告单独存储
 - 便于问题排查和性能优化
 
+## 📑 API文档
+
+### 认证接口
+
+#### 1. 用户登录
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+```
+
+响应示例：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiJ9...",
+    "user": {
+      "id": 1,
+      "username": "admin",
+      "roles": ["ROLE_ADMIN"]
+    }
+  }
+}
+```
+
+#### 2. 获取用户信息
+
+```http
+GET /api/auth/user
+Authorization: Bearer {token}
+```
+
+#### 3. 登出
+
+```http
+POST /api/auth/logout
+Authorization: Bearer {token}
+```
+
+### 资产管理接口
+
+#### 1. 获取资产列表
+
+```http
+GET /api/assets?page=0&size=10&sort=createTime,desc
+Authorization: Bearer {token}
+```
+
+查询参数：
+- `page`: 页码（从0开始）
+- `size`: 每页条数
+- `sort`: 排序字段和方向
+- `type`: 资产类型过滤
+- `status`: 状态过滤
+- `keyword`: 关键字搜索
+
+#### 2. 创建资产
+
+```http
+POST /api/assets
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "ThinkPad X1",
+  "type": "LAPTOP",
+  "status": "IN_USE",
+  "location": "R&D-001",
+  "purchaseDate": "2024-03-19"
+}
+```
+
+#### 3. 更新资产
+
+```http
+PUT /api/assets/{id}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "status": "MAINTENANCE",
+  "location": "IT-002"
+}
+```
+
+### 日志查询接口
+
+```http
+GET /api/logs
+Authorization: Bearer {token}
+
+查询参数：
+- startTime: 开始时间（yyyy-MM-dd HH:mm:ss）
+- endTime: 结束时间
+- type: 日志类型（OPERATION/ERROR/LOGIN）
+- module: 模块名称
+- username: 操作人
+```
+
 ## 🔧 环境要求
+
+### 基本要求
 
 - JDK 17+
 - MySQL 8.0+
 - Maven 3.8+
 - Node.js 16+ (前端开发)
+
+### 推荐开发工具
+
+- IntelliJ IDEA 2023.1+ (推荐使用Ultimate版本)
+- MySQL Workbench 8.0+ (数据库管理)
+- Postman (接口测试)
+- Git 2.30+
+
+### 推荐系统配置
+
+- 内存：16GB+
+- 处理器：4核+
+- 磁盘空间：10GB+
+- 网络：带宽要求不高，普通宽带即可
 
 ## 🛠️ 安装与部署
 
