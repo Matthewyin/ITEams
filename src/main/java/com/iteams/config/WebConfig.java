@@ -14,7 +14,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  *   <li>设置认证凭证的处理方式</li>
  * </ul>
  * 通过实现WebMvcConfigurer接口，我们可以自定义Spring MVC的默认行为，
- * 而不需要完全接管Spring MVC的配置。
+* 而不需要完全接管Spring MVC的配置。
  * </p>
  */
 @Configuration
@@ -44,13 +44,21 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**") // 应用到所有路径
-                .allowedOrigins("http://localhost:3000") // 允许前端应用的域名
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH") // 允许的HTTP方法
-                .allowedHeaders("*") // 允许所有请求头
+                // 允许多个前端开发环境的域名
+                .allowedOrigins("http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8080") 
+                // Spring Boot 2.4+ 支持的通配符模式
+                .allowedOriginPatterns("*") 
+                // 允许的HTTP方法
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH") 
+                // 允许所有请求头
+                .allowedHeaders("*") 
+                // 暴露这些响应头给客户端，增加Authorization头
                 .exposedHeaders("Content-Type", "X-Requested-With", "accept", "Origin", 
                                 "Access-Control-Request-Method", "Access-Control-Request-Headers",
-                                "Access-Control-Allow-Origin") // 暴露这些响应头给客户端
-                .allowCredentials(true) // 允许携带凭证信息（如cookies）
-                .maxAge(3600); // 预检请求的有效期（秒）
+                                "Access-Control-Allow-Origin", "Authorization") 
+                // 允许携带凭证信息（如cookies）
+                .allowCredentials(true) 
+                // 预检请求的有效期（秒）
+                .maxAge(3600); 
     }
 } 

@@ -382,6 +382,12 @@ public class ExcelParser {
          * 任务级别错误信息
          */
         private String error;
+        
+        /**
+         * 附加数据，用于存储特定于任务的额外信息
+         * 例如导入批次ID等，可以在任务完成后传递给前端
+         */
+        private Map<String, Object> extraData = new HashMap<>();
 
         // Getters and Setters
         /**
@@ -481,19 +487,36 @@ public class ExcelParser {
         }
 
         /**
-         * 获取任务级错误信息
-         * @return 任务级错误描述
+         * 获取任务级别错误信息
+         * @return 错误描述
          */
         public String getError() {
             return error;
         }
 
         /**
-         * 设置任务级错误信息
-         * @param error 任务级错误描述
+         * 设置任务级别错误信息
+         * @param error 错误描述
          */
         public void setError(String error) {
             this.error = error;
+        }
+        
+        /**
+         * 获取附加数据
+         * @return 附加数据Map
+         */
+        public Map<String, Object> getExtraData() {
+            return extraData;
+        }
+        
+        /**
+         * 添加附加数据
+         * @param key 键名
+         * @param value 值
+         */
+        public void addExtraData(String key, Object value) {
+            this.extraData.put(key, value);
         }
     }
 } 

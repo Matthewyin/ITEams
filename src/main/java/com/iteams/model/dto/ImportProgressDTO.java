@@ -22,6 +22,12 @@ public class ImportProgressDTO {
     private String taskId;
     
     /**
+     * 导入批次ID
+     * 用于关联同一批次导入的资产记录，前端可通过此ID查询导入结果
+     */
+    private String batchId;
+    
+    /**
      * 当前任务状态
      * 可能的值包括：PENDING（等待中）、PROCESSING（处理中）、COMPLETED（已完成）、FAILED（失败）
      */

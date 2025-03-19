@@ -68,7 +68,9 @@ public class ImportController {
             
             // 获取CompletableFuture的结果
             String taskId = importService.importExcelAsync(file).get();
-            return ApiResponse.success(taskId, "文件上传成功，开始处理");
+            
+            // 确保返回的数据中包含taskId字段
+            return ApiResponse.<String>success(taskId, "文件上传成功，开始处理");
             
         } catch (IOException e) {
             log.error("文件处理失败", e);
@@ -77,6 +79,10 @@ public class ImportController {
             log.error("异步任务执行失败", e);
             Thread.currentThread().interrupt(); // 重置中断状态
             return ApiResponse.error("异步处理失败：" + e.getMessage());
+        } catch (Exception e) {
+            // 捕获所有其他异常，确保返回一致的响应结构
+            log.error("导入处理过程中发生未预期的错误", e);
+            return ApiResponse.error("导入失败：" + e.getMessage());
         }
     }
 

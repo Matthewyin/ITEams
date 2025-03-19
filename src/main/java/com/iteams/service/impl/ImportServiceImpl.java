@@ -55,6 +55,13 @@ public class ImportServiceImpl implements ImportService {
     public CompletableFuture<String> importExcelAsync(MultipartFile file) throws IOException {
         String importBatch = UuidGenerator.generateImportBatchId();
         String taskId = excelParser.parseFile(file, new AssetRowProcessor(importBatch));
+        
+        // 在任务状态中存储导入批次ID，以便前端能够获取
+        ExcelParser.ImportTaskStatus status = excelParser.getTaskStatus(taskId);
+        if (status != null) {
+            status.addExtraData("importBatch", importBatch);
+        }
+        
         return CompletableFuture.completedFuture(taskId);
     }
 
@@ -70,6 +77,15 @@ public class ImportServiceImpl implements ImportService {
 
         ImportProgressDTO progress = new ImportProgressDTO();
         progress.setTaskId(taskId);
+        
+        // 从任务状态的extraData中获取导入批次ID
+        if (status.getExtraData().containsKey("importBatch")) {
+            Object batchIdObj = status.getExtraData().get("importBatch");
+            if (batchIdObj != null) {
+                progress.setBatchId(batchIdObj.toString());
+            }
+        }
+        
         progress.setState(status.getState().name());
         progress.setProgress(status.getProgress());
         progress.setTotalRows(status.getTotalRows());
