@@ -12,10 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 操作日志数据访问接口
- * <p>
- * 提供操作日志的CRUD操作和自定义查询
- * </p>
+ * 操作日志仓库接口
  */
 @Repository
 public interface OperationLogRepository extends JpaRepository<OperationLog, String>, JpaSpecificationExecutor<OperationLog> {

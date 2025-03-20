@@ -3,11 +3,13 @@ package com.iteams.model.entity;
 import com.iteams.model.enums.ModuleType;
 import com.iteams.model.enums.OperationType;
 import com.iteams.model.enums.StatusType;
-import lombok.Data;
-import org.hibernate.annotations.GenericGenerator;
-
 import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.proxy.HibernateProxy;
+
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * 操作日志实体类
@@ -15,7 +17,10 @@ import java.time.LocalDateTime;
  * 对应数据库表sys_operation_log，记录用户操作的详细信息
  * </p>
  */
-@Data
+@Getter
+@Setter
+@ToString
+@RequiredArgsConstructor
 @Entity
 @Table(name = "sys_operation_log", 
     indexes = {
@@ -143,4 +148,20 @@ public class OperationLog {
             this.operationTime = LocalDateTime.now();
         }
     }
-} 
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null) return false;
+        Class<?> oEffectiveClass = o instanceof HibernateProxy ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
+        Class<?> thisEffectiveClass = this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
+        if (thisEffectiveClass != oEffectiveClass) return false;
+        OperationLog that = (OperationLog) o;
+        return getId() != null && Objects.equals(getId(), that.getId());
+    }
+
+    @Override
+    public final int hashCode() {
+        return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
+    }
+}
