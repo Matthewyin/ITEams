@@ -5,6 +5,7 @@ import com.iteams.model.dto.LoginRequestDTO;
 import com.iteams.model.dto.LoginResponseDTO;
 import com.iteams.model.dto.UserInfoDTO;
 import com.iteams.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +35,9 @@ public class AuthController {
      * @return 登录响应
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponseDTO>> login(@Valid @RequestBody LoginRequestDTO loginRequest) {
+    public ResponseEntity<ApiResponse<LoginResponseDTO>> login(
+            @Valid @RequestBody LoginRequestDTO loginRequest,
+            HttpServletRequest request) {
         log.info("用户登录请求: {}", loginRequest.getUsername());
         LoginResponseDTO response = authService.login(loginRequest);
         return ResponseEntity.ok(ApiResponse.success("登录成功", response));

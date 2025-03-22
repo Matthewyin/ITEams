@@ -1,119 +1,162 @@
 package com.iteams.model.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.proxy.HibernateProxy;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 
 /**
- * 用户实体类
+ * 用户实体
  */
-@Data
+@Getter
+@Setter
+@ToString
+@RequiredArgsConstructor
 @Entity
-@Table(name = "users")
-public class User implements UserDetails {
+@Builder
+@AllArgsConstructor
+@Table(name = "sys_user")
+public class User {
 
+    /**
+     * 用户ID
+     */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * 用户名
+     */
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 
+    /**
+     * 密码（加密存储）
+     */
     @Column(nullable = false)
     private String password;
 
+    /**
+     * 真实姓名
+     */
     @Column(name = "real_name", length = 50)
     private String realName;
 
+    /**
+     * 电子邮件
+     */
+    @Column(length = 100)
+    private String email;
+
+    /**
+     * 电话号码
+     */
+    @Column(length = 20)
+    private String phone;
+
+    /**
+     * 头像URL
+     */
     @Column(name = "avatar_url", length = 255)
     private String avatarUrl;
 
+    /**
+     * 部门
+     */
+    @Column(length = 50)
+    private String department;
+
+    /**
+     * 账号是否未过期
+     */
+    @Column(name = "account_non_expired")
+    private Boolean accountNonExpired = Boolean.TRUE;
+
+    /**
+     * 账号是否未锁定
+     */
+    @Column(name = "account_non_locked")
+    private Boolean accountNonLocked = Boolean.TRUE;
+
+    /**
+     * 凭证是否未过期
+     */
+    @Column(name = "credentials_non_expired")
+    private Boolean credentialsNonExpired = Boolean.TRUE;
+
+    /**
+     * 账号是否启用
+     */
+    private Boolean enabled = Boolean.TRUE;
+
+    /**
+     * 最后登录时间
+     */
     @Column(name = "last_login_time")
     private LocalDateTime lastLoginTime;
 
-    @Column(name = "created_time", nullable = false)
-    private LocalDateTime createdTime;
+    /**
+     * 创建时间
+     */
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
-    @Column(name = "updated_time")
-    private LocalDateTime updatedTime;
+    /**
+     * 更新时间
+     */
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
-    @Column(nullable = false)
-    private boolean enabled = true;
+    /**
+     * 用户角色关联
+     */
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "sys_user_role",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles = new HashSet<>();
 
-    @Column(name = "account_non_expired", nullable = false)
-    private boolean accountNonExpired = true;
-
-    @Column(name = "account_non_locked", nullable = false)
-    private boolean accountNonLocked = true;
-
-    @Column(name = "credentials_non_expired", nullable = false)
-    private boolean credentialsNonExpired = true;
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "role")
-    private List<String> roles = new ArrayList<>();
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_permissions", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "permission")
-    private List<String> permissions = new ArrayList<>();
-
-    @PrePersist
-    public void prePersist() {
-        this.createdTime = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        this.updatedTime = LocalDateTime.now();
-    }
-
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        List<GrantedAuthority> authorities = new ArrayList<>();
-        
-        // 添加角色
-        if (roles != null) {
-            for (String role : roles) {
-                authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
-            }
-        }
-        
-        // 添加权限
-        if (permissions != null) {
-            for (String permission : permissions) {
-                authorities.add(new SimpleGrantedAuthority(permission));
-            }
-        }
-        
-        return authorities;
-    }
-
-    @Override
+    // 为与Spring Security兼容，提供以下辅助方法
     public boolean isAccountNonExpired() {
-        return accountNonExpired;
+        return accountNonExpired != null && accountNonExpired;
     }
 
-    @Override
     public boolean isAccountNonLocked() {
-        return accountNonLocked;
+        return accountNonLocked != null && accountNonLocked;
     }
 
-    @Override
     public boolean isCredentialsNonExpired() {
-        return credentialsNonExpired;
+        return credentialsNonExpired != null && credentialsNonExpired;
+    }
+
+    public boolean isEnabled() {
+        return enabled != null && enabled;
     }
 
     @Override
-    public boolean isEnabled() {
-        return enabled;
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null) return false;
+        Class<?> oEffectiveClass = o instanceof HibernateProxy ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
+        Class<?> thisEffectiveClass = this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
+        if (thisEffectiveClass != oEffectiveClass) return false;
+        User user = (User) o;
+        return getId() != null && Objects.equals(getId(), user.getId());
+    }
+
+    @Override
+    public final int hashCode() {
+        return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
     }
 }

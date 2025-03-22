@@ -75,4 +75,20 @@ public class ApiResponse<T> {
                 .message(message)
                 .build();
     }
+    
+    /**
+     * 失败响应（带数据）
+     *
+     * @param message 消息
+     * @param data 数据
+     * @param <T> 数据类型
+     * @return API响应
+     */
+    public static <T> ApiResponse<T> error(String message, T data) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .message(message)
+                .data(data)
+                .build();
+    }
 }

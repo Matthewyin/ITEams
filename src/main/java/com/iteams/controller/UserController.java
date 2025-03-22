@@ -1,73 +1,55 @@
 package com.iteams.controller;
 
 import com.iteams.model.dto.ApiResponse;
-import com.iteams.model.dto.PageResult;
-import com.iteams.model.entity.User;
-import com.iteams.model.enums.ModuleType;
-import com.iteams.model.enums.OperationType;
-import com.iteams.service.LogService;
+import com.iteams.model.dto.PasswordDTO;
+import com.iteams.model.dto.UserDTO;
 import com.iteams.service.UserService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * 用户管理控制器
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
+@RequiredArgsConstructor
 public class UserController {
+
     private final UserService userService;
-    private final LogService logService;
-
-    @Autowired
-    public UserController(UserService userService, LogService logService) {
-        this.userService = userService;
-        this.logService = logService;
-    }
-
 
     /**
      * 获取用户列表
      *
-     * @param query 查询关键字
-     * @param role 角色筛选
-     * @param status 状态筛选
-     * @param page 页码
-     * @param limit 每页数量
-     * @return 分页用户列表
+     * @param username   用户名（模糊查询）
+     * @param realName   姓名（模糊查询）
+     * @param department 部门（模糊查询）
+     * @param pageable   分页参数
+     * @return 用户列表
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('user:view')")
-    public ResponseEntity<ApiResponse<PageResult<User>>> getUsers(
-            @RequestParam(required = false) String query,
-            @RequestParam(required = false) String role,
-            @RequestParam(required = false) Integer status,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int limit) {
-        
-        Pageable pageable = PageRequest.of(page - 1, limit, Sort.by(Sort.Direction.DESC, "createdTime"));
-        Page<User> userPage = userService.getUsers(query, role, status, pageable);
-        
-        PageResult<User> pageResult = new PageResult<>();
-        pageResult.setItems(userPage.getContent());
-        pageResult.setTotal(userPage.getTotalElements());
-        
-        return ResponseEntity.ok(new ApiResponse<>(true, "获取用户列表成功", pageResult));
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<Page<UserDTO>>> getUsers(
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String realName,
+            @RequestParam(required = false) String department,
+            @PageableDefault(size = 10) Pageable pageable) {
+        log.info("获取用户列表，查询条件：username={}, realName={}, department={}", username, realName, department);
+        Page<UserDTO> users = userService.getUsers(username, realName, department, pageable);
+        return ResponseEntity.ok(ApiResponse.success("获取用户列表成功", users));
     }
-    
+
     /**
      * 获取用户详情
      *
@@ -75,152 +57,113 @@ public class UserController {
      * @return 用户详情
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('user:view')")
-    public ResponseEntity<ApiResponse<User>> getUser(@PathVariable Long id) {
-        return userService.getUserById(id)
-                .map(user -> ResponseEntity.ok(new ApiResponse<>(true, "获取用户详情成功", user)))
-                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new ApiResponse<>(false, "用户不存在", null)));
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<UserDTO>> getUserById(@PathVariable Long id) {
+        log.info("获取用户详情，ID：{}", id);
+        UserDTO user = userService.getUserById(id);
+        return ResponseEntity.ok(ApiResponse.success("获取用户详情成功", user));
     }
-    
+
     /**
      * 创建用户
      *
-     * @param user 用户数据
-     * @param principal 当前登录用户
-     * @return 创建结果
+     * @param userDTO 用户数据
+     * @return 创建后的用户
      */
     @PostMapping
-    @PreAuthorize("hasAuthority('user:create')")
-    public ResponseEntity<ApiResponse<User>> createUser(
-            @Valid @RequestBody User user,
-            Principal principal) {
-        
-        // 检查用户名是否已存在
-        if (userService.existsByUsername(user.getUsername())) {
-            return ResponseEntity.badRequest()
-                    .body(new ApiResponse<>(false, "用户名已存在", null));
-        }
-
-        
-        User createdUser = userService.createUser(user);
-        
-        // 记录操作日志
-        logService.logOperation(
-                principal.getName(),
-                ModuleType.USER,
-                OperationType.CREATE,
-                "创建用户: " + user.getUsername()
-        );
-        
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<UserDTO>> createUser(@Valid @RequestBody UserDTO userDTO) {
+        log.info("创建用户：{}", userDTO.getUsername());
+        UserDTO createdUser = userService.createUser(userDTO);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse<>(true, "用户创建成功", createdUser));
+                .body(ApiResponse.success("创建用户成功", createdUser));
     }
-    
+
     /**
      * 更新用户
      *
-     * @param id 用户ID
-     * @param user 用户数据
-     * @param principal 当前登录用户
-     * @return 更新结果
+     * @param id      用户ID
+     * @param userDTO 用户数据
+     * @return 更新后的用户
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('user:edit')")
-    public ResponseEntity<ApiResponse<User>> updateUser(
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<UserDTO>> updateUser(
             @PathVariable Long id,
-            @Valid @RequestBody User user,
-            Principal principal) {
-        
-
-        
-        User updatedUser = userService.updateUser(id, user);
-        
-        // 记录操作日志
-        logService.logOperation(
-                principal.getName(),
-                ModuleType.USER,
-                OperationType.UPDATE,
-                "更新用户: " + updatedUser.getUsername()
-        );
-        
-        return ResponseEntity.ok(new ApiResponse<>(true, "用户更新成功", updatedUser));
+            @Valid @RequestBody UserDTO userDTO) {
+        log.info("更新用户，ID：{}", id);
+        UserDTO updatedUser = userService.updateUser(id, userDTO);
+        return ResponseEntity.ok(ApiResponse.success("更新用户成功", updatedUser));
     }
-    
+
     /**
      * 删除用户
      *
      * @param id 用户ID
-     * @param principal 当前登录用户
-     * @return 删除结果
+     * @return 响应
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('user:delete')")
-    public ResponseEntity<ApiResponse<Void>> deleteUser(
-            @PathVariable Long id,
-            Principal principal) {
-        
-        // 获取要删除的用户名
-        String username = userService.getUserById(id)
-                .map(User::getUsername)
-                .orElse("未知用户");
-        
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
+        log.info("删除用户，ID：{}", id);
         userService.deleteUser(id);
-        
-        // 记录操作日志
-        logService.logOperation(
-                principal.getName(),
-                ModuleType.USER,
-                OperationType.DELETE,
-                "删除用户: " + username
-        );
-        
-        return ResponseEntity.ok(new ApiResponse<>(true, "用户删除成功", null));
+        return ResponseEntity.ok(ApiResponse.success("删除用户成功", null));
     }
-    
+
     /**
      * 重置用户密码
      *
      * @param id 用户ID
-     * @param principal 当前登录用户
-     * @return 重置结果
+     * @return 重置后的密码
      */
     @PostMapping("/reset-password/{id}")
-    @PreAuthorize("hasAuthority('user:reset-password')")
-    public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(
-            @PathVariable Long id,
-            Principal principal) {
-        
-        String newPassword = userService.resetPassword(id);
-        
-        // 获取用户名
-        String username = userService.getUserById(id)
-                .map(User::getUsername)
-                .orElse("未知用户");
-        
-        // 记录操作日志
-        logService.logOperation(
-                principal.getName(),
-                ModuleType.USER,
-                OperationType.UPDATE,
-                "重置用户密码: " + username
-        );
-        
-        Map<String, String> result = new HashMap<>();
-        result.put("password", newPassword);
-        
-        return ResponseEntity.ok(new ApiResponse<>(true, "密码重置成功", result));
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(@PathVariable Long id) {
+        log.info("重置用户密码，ID：{}", id);
+        String password = userService.resetPassword(id);
+        return ResponseEntity.ok(ApiResponse.success("重置密码成功", Map.of("password", password)));
     }
-    
+
     /**
-     * 获取所有角色列表
+     * 分配用户角色
      *
-     * @return 角色列表
+     * @param userId  用户ID
+     * @param roleIds 角色ID列表
+     * @return 响应
      */
-    @GetMapping("/roles")
-    @PreAuthorize("hasAuthority('user:view')")
-    public ResponseEntity<ApiResponse<List<UserService.RoleInfo>>> getRoles() {
-        List<UserService.RoleInfo> roles = userService.getAllRoles();
-        return ResponseEntity.ok(new ApiResponse<>(true, "获取角色列表成功", roles));
+    @PostMapping("/{userId}/roles")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> assignRoles(
+            @PathVariable Long userId,
+            @RequestBody List<Long> roleIds) {
+        log.info("分配用户角色，用户ID：{}，角色IDs：{}", userId, roleIds);
+        userService.assignRoles(userId, roleIds);
+        return ResponseEntity.ok(ApiResponse.success("分配角色成功", null));
+    }
+
+    /**
+     * 更新当前用户信息
+     *
+     * @param userDTO 用户数据
+     * @return 更新后的用户
+     */
+    @PutMapping("/profile")
+    public ResponseEntity<ApiResponse<UserDTO>> updateCurrentUser(@Valid @RequestBody UserDTO userDTO) {
+        log.info("更新当前用户信息");
+        UserDTO updatedUser = userService.updateCurrentUser(userDTO);
+        return ResponseEntity.ok(ApiResponse.success("更新个人信息成功", updatedUser));
+    }
+
+    /**
+     * 修改当前用户密码
+     *
+     * @param passwordDTO 密码数据
+     * @return 响应
+     */
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody PasswordDTO passwordDTO) {
+        log.info("修改当前用户密码");
+        userService.changePassword(passwordDTO);
+        return ResponseEntity.ok(ApiResponse.success("密码修改成功", null));
     }
 } 

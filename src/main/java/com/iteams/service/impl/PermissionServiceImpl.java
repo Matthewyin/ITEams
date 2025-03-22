@@ -1,190 +1,207 @@
 package com.iteams.service.impl;
 
-import com.iteams.exception.BusinessException;
+import com.iteams.exception.ResourceNotFoundException;
 import com.iteams.model.dto.PermissionDTO;
 import com.iteams.model.entity.Permission;
+import com.iteams.model.entity.Role;
+import com.iteams.model.entity.User;
 import com.iteams.repository.PermissionRepository;
-import com.iteams.repository.RolePermissionRepository;
+import com.iteams.repository.RoleRepository;
+import com.iteams.repository.UserRepository;
 import com.iteams.service.PermissionService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
-import jakarta.persistence.criteria.Predicate;
-import java.util.ArrayList;
+import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * 权限服务实现类
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PermissionServiceImpl implements PermissionService {
 
     private final PermissionRepository permissionRepository;
-    private final RolePermissionRepository rolePermissionRepository;
+    private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
 
+    /**
+     * 获取所有权限
+     */
     @Override
     public List<PermissionDTO> getAllPermissions() {
-        return permissionRepository.findAll().stream()
-                .map(PermissionDTO::fromEntity)
-                .collect(Collectors.toList());
+        List<Permission> permissions = permissionRepository.findAllOrderByCode();
+        return permissions.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
+    /**
+     * 根据ID获取权限
+     */
     @Override
-    public List<PermissionDTO> getPermissionTree() {
-        List<PermissionDTO> allPermissions = getAllPermissions();
-        return PermissionDTO.buildTree(allPermissions);
+    public PermissionDTO getPermissionById(Long id) {
+        Permission permission = permissionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("权限不存在: " + id));
+        return convertToDto(permission);
     }
 
+    /**
+     * 根据编码获取权限
+     */
     @Override
-    public Page<PermissionDTO> getPermissions(String query, Pageable pageable) {
-        Specification<Permission> spec = (root, criteriaQuery, criteriaBuilder) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            
-            if (StringUtils.hasText(query)) {
-                predicates.add(criteriaBuilder.or(
-                    criteriaBuilder.like(root.get("permissionName"), "%" + query + "%"),
-                    criteriaBuilder.like(root.get("permissionCode"), "%" + query + "%"),
-                    criteriaBuilder.like(root.get("path"), "%" + query + "%")
-                ));
-            }
-            
-            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
-        };
-        
-        return permissionRepository.findAll(spec, pageable)
-                .map(PermissionDTO::fromEntity);
+    public PermissionDTO getPermissionByCode(String code) {
+        Permission permission = permissionRepository.findByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("权限不存在: " + code));
+        return convertToDto(permission);
     }
 
-    @Override
-    public Optional<PermissionDTO> getPermissionById(Long id) {
-        return permissionRepository.findById(id)
-                .map(PermissionDTO::fromEntity);
-    }
-
-    @Override
-    public Optional<PermissionDTO> getPermissionByCode(String permissionCode) {
-        return permissionRepository.findByPermissionCode(permissionCode)
-                .map(PermissionDTO::fromEntity);
-    }
-
+    /**
+     * 创建权限
+     */
     @Override
     @Transactional
     public PermissionDTO createPermission(PermissionDTO permissionDTO) {
-        // 检查权限代码是否已存在
-        if (permissionRepository.existsByPermissionCode(permissionDTO.getPermissionCode())) {
-            throw new BusinessException("权限代码已存在");
+        // 检查权限编码是否存在
+        if (permissionRepository.existsByCode(permissionDTO.getCode())) {
+            throw new IllegalArgumentException("权限编码已存在: " + permissionDTO.getCode());
         }
-        
-        // 检查父级权限是否存在
-        if (permissionDTO.getParentId() != null && permissionDTO.getParentId() > 0) {
-            permissionRepository.findById(permissionDTO.getParentId())
-                    .orElseThrow(() -> new BusinessException("父级权限不存在"));
-        }
-        
-        Permission permission = permissionDTO.toEntity();
-        permission = permissionRepository.save(permission);
-        
-        return PermissionDTO.fromEntity(permission);
+
+        // 创建权限
+        Permission permission = new Permission();
+        permission.setName(permissionDTO.getName());
+        permission.setCode(permissionDTO.getCode());
+        permission.setDescription(permissionDTO.getDescription());
+        permission.setType(permissionDTO.getType());
+        permission.setCreatedAt(LocalDateTime.now());
+
+        // 保存权限
+        Permission savedPermission = permissionRepository.save(permission);
+        return convertToDto(savedPermission);
     }
 
+    /**
+     * 更新权限
+     */
     @Override
     @Transactional
     public PermissionDTO updatePermission(Long id, PermissionDTO permissionDTO) {
         Permission permission = permissionRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("权限不存在"));
-        
-        // 检查权限代码是否已存在(如果更改了权限代码)
-        if (!permissionDTO.getPermissionCode().equals(permission.getPermissionCode()) && 
-                permissionRepository.existsByPermissionCode(permissionDTO.getPermissionCode())) {
-            throw new BusinessException("权限代码已存在");
+                .orElseThrow(() -> new ResourceNotFoundException("权限不存在: " + id));
+
+        // 检查权限编码是否重复
+        if (!permission.getCode().equals(permissionDTO.getCode()) 
+                && permissionRepository.existsByCode(permissionDTO.getCode())) {
+            throw new IllegalArgumentException("权限编码已存在: " + permissionDTO.getCode());
         }
-        
-        // 检查父级权限是否存在
-        if (permissionDTO.getParentId() != null && permissionDTO.getParentId() > 0) {
-            // 防止循环引用 - 不能将自己或子权限设置为父权限
-            if (permissionDTO.getParentId().equals(id)) {
-                throw new BusinessException("不能将自己设置为父级权限");
-            }
-            
-            // 检查父级权限是否存在
-            permissionRepository.findById(permissionDTO.getParentId())
-                    .orElseThrow(() -> new BusinessException("父级权限不存在"));
-            
-            // TODO: 进一步检查是否形成循环引用(子权限的子权限...)
-        }
-        
-        // 更新权限信息
-        permission.setParentId(permissionDTO.getParentId());
-        permission.setPermissionCode(permissionDTO.getPermissionCode());
-        permission.setPermissionName(permissionDTO.getPermissionName());
-        permission.setPermissionType(permissionDTO.getPermissionType());
-        permission.setPath(permissionDTO.getPath());
-        permission.setComponent(permissionDTO.getComponent());
-        permission.setIcon(permissionDTO.getIcon());
-        permission.setSortOrder(permissionDTO.getSortOrder());
-        permission.setStatus(permissionDTO.getStatus());
-        permission.setVisible(permissionDTO.getVisible());
-        
-        permission = permissionRepository.save(permission);
-        
-        return PermissionDTO.fromEntity(permission);
+
+        // 更新权限
+        permission.setName(permissionDTO.getName());
+        permission.setCode(permissionDTO.getCode());
+        permission.setDescription(permissionDTO.getDescription());
+        permission.setType(permissionDTO.getType());
+        permission.setUpdatedAt(LocalDateTime.now());
+
+        // 保存权限
+        Permission savedPermission = permissionRepository.save(permission);
+        return convertToDto(savedPermission);
     }
 
+    /**
+     * 删除权限
+     */
     @Override
     @Transactional
-    public boolean deletePermission(Long id) {
-        try {
-            Permission permission = permissionRepository.findById(id)
-                    .orElseThrow(() -> new BusinessException("权限不存在"));
-            
-            // 检查是否有子权限
-            List<Permission> children = permissionRepository.findByParentIdOrderBySortOrder(id);
-            if (!children.isEmpty()) {
-                throw new BusinessException("该权限下有子权限，不允许删除");
-            }
-            
-            // 检查是否有角色使用该权限
-            long count = rolePermissionRepository.findByPermissionId(id).size();
-            if (count > 0) {
-                throw new BusinessException("该权限已被角色使用，不允许删除");
-            }
-            
-            // 删除权限
-            permissionRepository.delete(permission);
-            
-            return true;
-        } catch (Exception e) {
-            return false;
+    public void deletePermission(Long id) {
+        Permission permission = permissionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("权限不存在: " + id));
+
+        // 检查是否是系统内置权限
+        if (isSystemPermission(permission.getCode())) {
+            throw new IllegalArgumentException("不能删除系统内置权限: " + permission.getName());
         }
+
+        // 删除权限
+        permissionRepository.delete(permission);
     }
 
+    /**
+     * 获取角色的权限
+     */
     @Override
     public List<PermissionDTO> getRolePermissions(Long roleId) {
-        List<Permission> permissions = permissionRepository.findByRoleId(roleId);
-        return permissions.stream()
-                .map(PermissionDTO::fromEntity)
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new ResourceNotFoundException("角色不存在: " + roleId));
+
+        return role.getPermissions().stream()
+                .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 获取用户的权限
+     */
     @Override
     public List<PermissionDTO> getUserPermissions(Long userId) {
-        return permissionRepository.findByUserId(userId).stream()
-                .map(PermissionDTO::fromEntity)
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("用户不存在: " + userId));
+
+        // 获取用户所有角色的权限
+        Set<Permission> permissions = new HashSet<>();
+        user.getRoles().forEach(role -> permissions.addAll(role.getPermissions()));
+
+        return permissions.stream()
+                .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 获取用户的权限编码
+     */
     @Override
-    public List<PermissionDTO> getUserMenus(Long userId) {
-        return permissionRepository.findMenusByUserId(userId).stream()
-                .map(PermissionDTO::fromEntity)
-                .collect(Collectors.toList());
+    public Set<String> getUserPermissionCodes(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("用户不存在: " + userId));
+
+        // 获取用户所有角色的权限
+        Set<String> permissionCodes = new HashSet<>();
+        user.getRoles().forEach(role -> 
+            role.getPermissions().forEach(permission -> 
+                permissionCodes.add(permission.getCode())
+            )
+        );
+
+        return permissionCodes;
+    }
+
+    /**
+     * 转换权限实体为DTO
+     */
+    private PermissionDTO convertToDto(Permission permission) {
+        return PermissionDTO.builder()
+                .id(permission.getId())
+                .name(permission.getName())
+                .code(permission.getCode())
+                .description(permission.getDescription())
+                .type(permission.getType())
+                .build();
+    }
+
+    /**
+     * 检查是否是系统内置权限
+     */
+    private boolean isSystemPermission(String code) {
+        // 定义系统基础权限（不允许删除）
+        List<String> systemPermissions = List.of(
+                "USER_VIEW", "USER_CREATE", "USER_EDIT", "USER_DELETE",
+                "ROLE_VIEW", "ROLE_CREATE", "ROLE_EDIT", "ROLE_DELETE",
+                "PERMISSION_VIEW", "PERMISSION_CREATE", "PERMISSION_EDIT", "PERMISSION_DELETE"
+        );
+        return systemPermissions.contains(code);
     }
 } 

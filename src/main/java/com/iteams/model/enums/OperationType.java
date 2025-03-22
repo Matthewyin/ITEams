@@ -1,11 +1,14 @@
 package com.iteams.model.enums;
 
+import lombok.Getter;
+
 /**
  * 操作类型枚举
  * <p>
  * 定义系统支持的各种操作类型，如新增、修改、删除等
  * </p>
  */
+@Getter
 public enum OperationType {
     
     CREATE("新增"),
@@ -24,8 +27,5 @@ public enum OperationType {
     OperationType(String description) {
         this.description = description;
     }
-    
-    public String getDescription() {
-        return description;
-    }
+
 } 

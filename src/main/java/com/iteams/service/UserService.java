@@ -1,119 +1,98 @@
 package com.iteams.service;
 
-import com.iteams.model.dto.UserInfoDTO;
+import com.iteams.model.dto.PasswordDTO;
+import com.iteams.model.dto.UserDTO;
 import com.iteams.model.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * 用户服务接口
  */
-public interface UserService {
-    
+public interface UserService extends UserDetailsService {
+
+    /**
+     * 获取用户分页列表
+     *
+     * @param username   用户名（模糊查询）
+     * @param realName   姓名（模糊查询）
+     * @param department 部门（模糊查询）
+     * @param pageable   分页参数
+     * @return 用户分页列表
+     */
+    Page<UserDTO> getUsers(String username, String realName, String department, Pageable pageable);
+
     /**
      * 根据ID获取用户
-     * 
+     *
      * @param id 用户ID
-     * @return 用户对象
+     * @return 用户
      */
-    Optional<User> getUserById(Long id);
-    
+    UserDTO getUserById(Long id);
+
     /**
      * 根据用户名获取用户
-     * 
+     *
      * @param username 用户名
-     * @return 用户对象
+     * @return 用户
      */
-    Optional<User> getUserByUsername(String username);
-    
-    /**
-     * 分页获取用户列表
-     * 
-     * @param query 查询条件
-     * @param role 角色筛选
-     * @param status 状态筛选
-     * @param pageable 分页参数
-     * @return 分页用户列表
-     */
-    Page<User> getUsers(String query, String role, Integer status, Pageable pageable);
-    
+    User getUserByUsername(String username);
+
     /**
      * 创建用户
-     * 
-     * @param user 用户对象
+     *
+     * @param userDTO 用户数据
      * @return 创建后的用户
      */
-    User createUser(User user);
-    
+    UserDTO createUser(UserDTO userDTO);
+
     /**
      * 更新用户
-     * 
-     * @param id 用户ID
-     * @param user 用户对象
+     *
+     * @param id      用户ID
+     * @param userDTO 用户数据
      * @return 更新后的用户
      */
-    User updateUser(Long id, User user);
-    
+    UserDTO updateUser(Long id, UserDTO userDTO);
+
+    /**
+     * 更新当前用户信息
+     *
+     * @param userDTO 用户数据
+     * @return 更新后的用户
+     */
+    UserDTO updateCurrentUser(UserDTO userDTO);
+
     /**
      * 删除用户
-     * 
+     *
      * @param id 用户ID
      */
     void deleteUser(Long id);
-    
-    /**
-     * 检查用户名是否存在
-     * 
-     * @param username 用户名
-     * @return 是否存在
-     */
-    boolean existsByUsername(String username);
-    
 
     /**
      * 重置用户密码
-     * 
+     *
      * @param id 用户ID
-     * @return 重置后的密码
+     * @return 重置后的随机密码
      */
     String resetPassword(Long id);
-    
+
     /**
-     * 获取所有角色列表
-     * 
-     * @return 角色列表
+     * 修改当前用户密码
+     *
+     * @param passwordDTO 密码数据
      */
-    List<RoleInfo> getAllRoles();
-    
+    void changePassword(PasswordDTO passwordDTO);
+
     /**
-     * 角色信息
+     * 分配用户角色
+     *
+     * @param userId  用户ID
+     * @param roleIds 角色ID列表
      */
-    class RoleInfo {
-        private String code;
-        private String name;
-        
-        public RoleInfo(String code, String name) {
-            this.code = code;
-            this.name = name;
-        }
-        
-        public String getCode() {
-            return code;
-        }
-        
-        public void setCode(String code) {
-            this.code = code;
-        }
-        
-        public String getName() {
-            return name;
-        }
-        
-        public void setName(String name) {
-            this.name = name;
-        }
-    }
+    void assignRoles(Long userId, List<Long> roleIds);
 } 

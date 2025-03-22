@@ -1,11 +1,14 @@
 package com.iteams.model.enums;
 
+import lombok.Getter;
+
 /**
  * 模块类型枚举
  * <p>
  * 定义系统的各个功能模块，如资产管理、用户管理等
  * </p>
  */
+@Getter
 public enum ModuleType {
     
     ASSET("资产管理"),
@@ -20,8 +23,5 @@ public enum ModuleType {
     ModuleType(String description) {
         this.description = description;
     }
-    
-    public String getDescription() {
-        return description;
-    }
+
 } 

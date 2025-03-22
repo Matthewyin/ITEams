@@ -1,8 +1,13 @@
 package com.iteams.config;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.web.client.RestTemplate;
+import java.time.Duration;
 
 /**
  * Web配置类
@@ -60,5 +65,30 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowCredentials(true) 
                 // 预检请求的有效期（秒）
                 .maxAge(3600); 
+    }
+
+    /**
+     * 配置RestTemplate用于远程API调用
+     */
+    @Bean
+    public RestTemplate restTemplate(RestTemplateBuilder builder) {
+        return builder
+            .setConnectTimeout(Duration.ofSeconds(5))
+            .setReadTimeout(Duration.ofSeconds(5))
+            .build();
+    }
+
+    /**
+     * 配置静态资源处理器
+     * 
+     * @param registry 资源处理器注册表
+     */
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/**")
+                .addResourceLocations("classpath:/static/")
+                .addResourceLocations("classpath:/public/")
+                .addResourceLocations("classpath:/resources/")
+                .addResourceLocations("classpath:/META-INF/resources/");
     }
 } 

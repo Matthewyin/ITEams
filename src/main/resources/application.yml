@@ -13,6 +13,14 @@ server:
 spring:
   application:
     name: it-asset-management       # 应用名称，用于日志和监控识别
+  main:
+    allow-circular-references: true
+    allow-bean-definition-overriding: true
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
   
   # 数据源配置
   # 定义与MySQL数据库的连接参数和连接池设置
@@ -25,30 +33,27 @@ spring:
                                     # - 设置时区为上海
                                     # - 允许公钥检索用于安全连接
     username: root                  # 数据库用户名
-    password: netPA-2025            # 数据库密码（生产环境应使用加密配置）
+    password: h3c.com123            # 数据库密码（生产环境应使用加密配置）
     driver-class-name: com.mysql.cj.jdbc.Driver  # MySQL 8.0+驱动类
     hikari:                         # Hikari连接池配置，Spring Boot默认连接池
       maximum-pool-size: 20         # 最大连接数，根据并发量调整
       minimum-idle: 5               # 最小空闲连接数
       connection-timeout: 30000     # 连接超时时间（毫秒）
   
-  # JPA配置
-  # Java持久层API配置，定义ORM行为和数据库交互方式
-  # SQL初始化配置
+  # 数据库初始化配置
   sql:
     init:
-      mode: always                 # 总是执行初始化脚本
-      schema-locations: classpath:db/init-user.sql  # 初始化脚本位置
-      continue-on-error: true      # 出错时继续执行
-      
+      mode: always
+      platform: mysql
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
+      continue-on-error: true
+  
+  # JPA配置
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect  # 数据库方言，适用于MySQL 8.0+
     hibernate:
-      ddl-auto: update              # 自动创建/更新表结构：
-                                    # - update: 根据实体类更新表结构，保留数据
-                                    # - create: 每次启动删除并创建表
-                                    # - validate: 仅验证表结构，不更改
-                                    # - none: 不执行任何操作
+      ddl-auto: update              # 自动创建/更新表结构
     show-sql: true                  # 显示SQL语句，方便开发调试
     properties:
       hibernate:
@@ -56,14 +61,7 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect  # 数据库方言，适用于MySQL 8.0+
         jdbc:
           batch_size: 50            # JDBC批处理大小，提高批量操作性能
-        hbm2ddl:
-          auto: update              # 与上面的ddl-auto一致，冗余配置
-          import_files: classpath:db/schema.sql,classpath:db/data.sql
-                                    # 启动时导入的SQL脚本文件：
-                                    # - schema.sql: 表结构定义
-                                    # - data.sql: 初始数据导入
-          import_files_sql_extractor: org.hibernate.tool.hbm2ddl.MultipleLinesSqlCommandExtractor
-                                    # SQL提取器，支持多行SQL语句（如存储过程）
+    defer-datasource-initialization: true # 确保在JPA初始化后再执行SQL脚本
   
   # 文件上传配置
   # 用于限制Excel导入文件的大小和请求参数
@@ -101,6 +99,35 @@ iteams:
                                     # 令牌有效期，单位秒（24小时）
       token-validity-in-seconds-for-remember-me: 604800
                                     # "记住我"选项的令牌有效期（7天）
+  # 用户服务配置
+  user:
+    service-url: http://localhost:8080/api
+                                    # 用户管理服务API地址
+                                    
+  # 初始化数据配置
+  init-data:
+    # 是否启用初始化数据
+    enabled: true
+    # 角色配置
+    roles:
+      - name: 超级管理员
+        code: SUPER_ADMIN
+        description: 系统超级管理员，拥有所有权限
+      - name: 管理员
+        code: ADMIN
+        description: 系统管理员角色，拥有大部分管理权限
+      - name: 普通用户
+        code: USER
+        description: 系统基本用户角色，拥有基本操作权限
+    # 超级管理员用户配置
+    admin-user:
+      username: supadmin
+      password: $2a$10$0WPWBaXQvZ7SuUViXN5vSevqGLP8/i3rCsB6jyB8g78qH1emPukmK
+      password-encrypted: true
+      real-name: 系统管理员
+      email: admin@iteams.com
+      department: 系统管理部
+      role-code: SUPER_ADMIN
 
 # JWT配置
 # 用于JWT令牌的生成和验证

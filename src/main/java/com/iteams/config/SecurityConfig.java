@@ -10,8 +10,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -29,18 +27,20 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     /**
      * 安全过滤器链配置
      *
      * @param http HTTP安全配置
+     * @param jwtAuthenticationFilter JWT认证过滤器
      * @return 安全过滤器链
      * @throws Exception 配置异常
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http, 
+            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         return http
                 // 禁用CSRF保护
                 .csrf(AbstractHttpConfigurer::disable)
@@ -57,22 +57,15 @@ public class SecurityConfig {
                         // 允许公开访问的路径
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/api/test/**").permitAll() // 开发环境测试接口
                         .requestMatchers("/error").permitAll()
+                        // 系统用户API - 需要通过权限验证 
+                        .requestMatchers("/api/system/user/**").authenticated()
                         // 其他所有请求需要认证
                         .anyRequest().authenticated())
                 // 添加JWT过滤器
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
-    }
-
-    /**
-     * 密码编码器
-     *
-     * @return BCrypt密码编码器
-     */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 
     /**
