@@ -32,13 +32,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
      */
     boolean existsByUsername(String username);
 
-    /**
-     * 检查邮箱是否存在
-     *
-     * @param email 邮箱
-     * @return 是否存在
-     */
-    boolean existsByEmail(String email);
 
     /**
      * 更新用户最后登录时间

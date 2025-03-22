@@ -108,15 +108,7 @@ public class UserServiceImpl implements UserService {
         if (StringUtils.hasText(userUpdate.getRealName())) {
             user.setRealName(userUpdate.getRealName());
         }
-        
-        if (StringUtils.hasText(userUpdate.getEmail())) {
-            user.setEmail(userUpdate.getEmail());
-        }
-        
-        if (StringUtils.hasText(userUpdate.getPhone())) {
-            user.setPhone(userUpdate.getPhone());
-        }
-        
+
         if (StringUtils.hasText(userUpdate.getAvatarUrl())) {
             user.setAvatarUrl(userUpdate.getAvatarUrl());
         }
@@ -157,11 +149,7 @@ public class UserServiceImpl implements UserService {
         return userRepository.existsByUsername(username);
     }
     
-    @Override
-    public boolean existsByEmail(String email) {
-        return userRepository.existsByEmail(email);
-    }
-    
+
     @Override
     @Transactional
     public String resetPassword(Long id) {

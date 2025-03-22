@@ -32,12 +32,6 @@ public class User implements UserDetails {
     @Column(name = "real_name", length = 50)
     private String realName;
 
-    @Column(length = 100)
-    private String email;
-
-    @Column(length = 20)
-    private String phone;
-
     @Column(name = "avatar_url", length = 255)
     private String avatarUrl;
 

@@ -4,8 +4,6 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(100) NOT NULL,
     real_name VARCHAR(50),
-    email VARCHAR(100),
-    phone VARCHAR(20),
     avatar_url VARCHAR(255),
     last_login_time DATETIME,
     created_time DATETIME NOT NULL,
@@ -33,13 +31,13 @@ CREATE TABLE IF NOT EXISTS user_permissions (
 );
 
 -- 插入管理员用户（密码: admin123，使用BCrypt加密）
-INSERT INTO users (username, password, real_name, email, enabled, account_non_expired, account_non_locked, credentials_non_expired, created_time)
-VALUES ('admin', '$2a$10$rAYrAEmDrLrUJK.R9QJBBOBgpJHRZ/eP33GXmvQ/WZWNdIzrXkA9a', '系统管理员', 'admin@example.com', TRUE, TRUE, TRUE, TRUE, NOW())
-ON DUPLICATE KEY UPDATE updated_time = NOW();
+INSERT INTO users (username, password, real_name, enabled, account_non_expired, account_non_locked, credentials_non_expired, created_time)
+VALUES ('admin', '$2a$10$0WPWBaXQvZ7SuUViXN5vSevqGLP8/i3rCsB6jyB8g78qH1emPukmK', '系统管理员', TRUE, TRUE, TRUE, TRUE, NOW())
+ON DUPLICATE KEY UPDATE updated_time = NOW(), password = '$2a$10$0WPWBaXQvZ7SuUViXN5vSevqGLP8/i3rCsB6jyB8g78qH1emPukmK';
 
 -- 插入普通用户（密码: user123，使用BCrypt加密）
-INSERT INTO users (username, password, real_name, email, enabled, account_non_expired, account_non_locked, credentials_non_expired, created_time)
-VALUES ('user', '$2a$10$9ZYKmPzWAHHk0GlQBkL2xOUMZL9WhZ7pUGSE/2NhsIEQQCFTRQYQi', '普通用户', 'user@example.com', TRUE, TRUE, TRUE, TRUE, NOW())
+INSERT INTO users (username, password, real_name, enabled, account_non_expired, account_non_locked, credentials_non_expired, created_time)
+VALUES ('user', '$2a$10$9ZYKmPzWAHHk0GlQBkL2xOUMZL9WhZ7pUGSE/2NhsIEQQCFTRQYQi', '普通用户', TRUE, TRUE, TRUE, TRUE, NOW())
 ON DUPLICATE KEY UPDATE updated_time = NOW();
 
 -- 清空角色表中的数据

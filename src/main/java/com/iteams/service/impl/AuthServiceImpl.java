@@ -131,8 +131,6 @@ public class AuthServiceImpl implements AuthService {
         userInfoDTO.setId(user.getId());
         userInfoDTO.setUsername(user.getUsername());
         userInfoDTO.setRealName(user.getRealName());
-        userInfoDTO.setEmail(user.getEmail());
-        userInfoDTO.setPhone(user.getPhone());
         userInfoDTO.setAvatarUrl(user.getAvatarUrl());
         userInfoDTO.setLastLoginTime(user.getLastLoginTime());
         userInfoDTO.setRoles(user.getRoles());

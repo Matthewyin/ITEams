@@ -29,13 +29,16 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
+    private final UserService userService;
+    private final LogService logService;
 
     @Autowired
-    private UserService userService;
-    
-    @Autowired
-    private LogService logService;
-    
+    public UserController(UserService userService, LogService logService) {
+        this.userService = userService;
+        this.logService = logService;
+    }
+
+
     /**
      * 获取用户列表
      *
@@ -98,12 +101,7 @@ public class UserController {
             return ResponseEntity.badRequest()
                     .body(new ApiResponse<>(false, "用户名已存在", null));
         }
-        
-        // 检查邮箱是否已存在
-        if (user.getEmail() != null && userService.existsByEmail(user.getEmail())) {
-            return ResponseEntity.badRequest()
-                    .body(new ApiResponse<>(false, "邮箱已存在", null));
-        }
+
         
         User createdUser = userService.createUser(user);
         
@@ -134,14 +132,7 @@ public class UserController {
             @Valid @RequestBody User user,
             Principal principal) {
         
-        // 检查邮箱是否已存在
-        if (user.getEmail() != null && userService.existsByEmail(user.getEmail())) {
-            User existingUser = userService.getUserById(id).orElse(null);
-            if (existingUser == null || !user.getEmail().equals(existingUser.getEmail())) {
-                return ResponseEntity.badRequest()
-                        .body(new ApiResponse<>(false, "邮箱已存在", null));
-            }
-        }
+
         
         User updatedUser = userService.updateUser(id, user);
         
