@@ -117,8 +117,14 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         user.setRealName(userDTO.getRealName());
         user.setEmail(userDTO.getEmail());
+        user.setPhone(userDTO.getPhone());
         user.setDepartment(userDTO.getDepartment());
         user.setCreatedAt(LocalDateTime.now());
+        
+        // 设置用户状态
+        if (userDTO.getStatus() != null) {
+            user.setEnabled(userDTO.getStatus() == 1);
+        }
 
         // 设置默认角色为普通用户
         Role userRole = roleRepository.findByCode("USER")
@@ -142,8 +148,14 @@ public class UserServiceImpl implements UserService {
         // 更新用户信息
         user.setRealName(userDTO.getRealName());
         user.setEmail(userDTO.getEmail());
+        user.setPhone(userDTO.getPhone());
         user.setDepartment(userDTO.getDepartment());
         user.setUpdatedAt(LocalDateTime.now());
+        
+        // 更新用户状态
+        if (userDTO.getStatus() != null) {
+            user.setEnabled(userDTO.getStatus() == 1);
+        }
 
         // 保存用户
         User savedUser = userRepository.save(user);
@@ -163,8 +175,11 @@ public class UserServiceImpl implements UserService {
         // 更新用户信息
         user.setRealName(userDTO.getRealName());
         user.setEmail(userDTO.getEmail());
+        user.setPhone(userDTO.getPhone());
         user.setDepartment(userDTO.getDepartment());
         user.setUpdatedAt(LocalDateTime.now());
+        
+        // 普通用户不能修改自己的状态，只有管理员可以
 
         // 保存用户
         User savedUser = userRepository.save(user);
@@ -259,7 +274,11 @@ public class UserServiceImpl implements UserService {
         dto.setUsername(user.getUsername());
         dto.setRealName(user.getRealName());
         dto.setEmail(user.getEmail());
+        dto.setPhone(user.getPhone());
         dto.setDepartment(user.getDepartment());
+        
+        // 设置状态，将Boolean转换为Integer
+        dto.setStatus(user.isEnabled() ? 1 : 0);
         
         // 设置角色
         Set<String> roles = user.getRoles().stream()
