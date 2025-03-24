@@ -7,6 +7,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import java.time.Duration;
 
 /**
@@ -17,12 +18,14 @@ import java.time.Duration;
  *   <li>跨域资源共享(CORS)策略配置</li>
  *   <li>定义允许的请求源、HTTP方法和请求头</li>
  *   <li>设置认证凭证的处理方式</li>
+ *   <li>配置Spring Data Web支持，处理分页序列化</li>
  * </ul>
  * 通过实现WebMvcConfigurer接口，我们可以自定义Spring MVC的默认行为，
 * 而不需要完全接管Spring MVC的配置。
  * </p>
  */
 @Configuration
+@EnableSpringDataWebSupport
 public class WebConfig implements WebMvcConfigurer {
 
     /**

@@ -33,7 +33,7 @@ spring:
                                     # - 设置时区为上海
                                     # - 允许公钥检索用于安全连接
     username: root                  # 数据库用户名
-    password: root            # 数据库密码（生产环境应使用加密配置）
+    password: netPA-2025            # 数据库密码（生产环境应使用加密配置）
     driver-class-name: com.mysql.cj.jdbc.Driver  # MySQL 8.0+驱动类
     hikari:                         # Hikari连接池配置，Spring Boot默认连接池
       maximum-pool-size: 20         # 最大连接数，根据并发量调整
@@ -99,6 +99,9 @@ iteams:
                                     # 令牌有效期，单位秒（24小时）
       token-validity-in-seconds-for-remember-me: 604800
                                     # "记住我"选项的令牌有效期（7天）
+    login:
+      max-fail-attempts: 5         # 最大登录失败次数，超过后锁定账户
+      lock-duration-minutes: 30    # 账户锁定时长，单位分钟
   # 用户服务配置
   user:
     service-url: http://localhost:8080/api

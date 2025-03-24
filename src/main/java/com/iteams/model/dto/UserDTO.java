@@ -40,13 +40,38 @@ public class UserDTO {
     
     private String phone;
 
-    @Size(max = 50, message = "部门长度不能超过50个字符")
-    private String department;
+    /**
+     * 部门ID
+     */
+    private Long departmentId;
+    
+    /**
+     * 部门名称（仅用于显示）
+     */
+    private String departmentName;
+    
+    /**
+     * 头像URL
+     */
+    private String avatarUrl;
 
     /**
      * 用户状态，1表示启用，0表示禁用
      */
     private Integer status;
 
+    @Builder.Default
     private Set<String> roles = new HashSet<>();
+    
+    /**
+     * 用户所属用户组ID列表
+     */
+    @Builder.Default
+    private Set<Long> groupIds = new HashSet<>();
+    
+    /**
+     * 用户所属用户组名称列表（仅用于显示）
+     */
+    @Builder.Default
+    private Set<String> groupNames = new HashSet<>();
 } 

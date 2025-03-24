@@ -8,6 +8,7 @@ import com.iteams.model.vo.ApiResponse;
 import com.iteams.model.vo.OperationLogDetailVO;
 import com.iteams.model.vo.OperationLogStatsVO;
 import com.iteams.model.vo.OperationLogVO;
+import com.iteams.model.dto.pagination.PagedResponse;
 import com.iteams.service.OperationLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,9 +47,10 @@ public class OperationLogController {
      */
     @GetMapping
     @OperationLog(module = ModuleType.SYSTEM, operationType = OperationType.QUERY, description = "查询操作日志")
-    public ApiResponse<Page<OperationLogVO>> getLogs(OperationLogQuery query) {
+    public ApiResponse<PagedResponse<OperationLogVO>> getLogs(OperationLogQuery query) {
         Page<OperationLogVO> page = operationLogService.getLogs(query);
-        return ApiResponse.success(page);
+        PagedResponse<OperationLogVO> response = PagedResponse.of(page);
+        return ApiResponse.success(response);
     }
     
     /**

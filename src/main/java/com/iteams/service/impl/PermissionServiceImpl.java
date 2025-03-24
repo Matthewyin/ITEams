@@ -8,6 +8,7 @@ import com.iteams.model.entity.User;
 import com.iteams.repository.PermissionRepository;
 import com.iteams.repository.RoleRepository;
 import com.iteams.repository.UserRepository;
+import com.iteams.service.PermissionCacheService;
 import com.iteams.service.PermissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class PermissionServiceImpl implements PermissionService {
     private final PermissionRepository permissionRepository;
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
+    private final PermissionCacheService permissionCacheService;
 
     /**
      * 获取所有权限
@@ -82,6 +84,11 @@ public class PermissionServiceImpl implements PermissionService {
 
         // 保存权限
         Permission savedPermission = permissionRepository.save(permission);
+        
+        // 清除所有权限缓存，因为权限变更会影响所有用户
+        permissionCacheService.clearAllPermissionCache();
+        log.debug("创建权限后清除所有权限缓存, 权限编码: {}", permissionDTO.getCode());
+        
         return convertToDto(savedPermission);
     }
 
@@ -109,6 +116,11 @@ public class PermissionServiceImpl implements PermissionService {
 
         // 保存权限
         Permission savedPermission = permissionRepository.save(permission);
+        
+        // 清除所有权限缓存，因为权限变更会影响所有用户
+        permissionCacheService.clearAllPermissionCache();
+        log.debug("更新权限后清除所有权限缓存, 权限ID: {}, 权限编码: {}", id, permissionDTO.getCode());
+        
         return convertToDto(savedPermission);
     }
 
@@ -128,6 +140,10 @@ public class PermissionServiceImpl implements PermissionService {
 
         // 删除权限
         permissionRepository.delete(permission);
+        
+        // 清除所有权限缓存，因为权限变更会影响所有用户
+        permissionCacheService.clearAllPermissionCache();
+        log.debug("删除权限后清除所有权限缓存, 权限ID: {}, 权限编码: {}", id, permission.getCode());
     }
 
     /**
@@ -162,9 +178,19 @@ public class PermissionServiceImpl implements PermissionService {
 
     /**
      * 获取用户的权限编码
+     * 优化版本：使用缓存提高性能
      */
     @Override
     public Set<String> getUserPermissionCodes(Long userId) {
+        // 先从缓存中获取
+        Set<String> cachedPermissions = permissionCacheService.getUserPermissionCodes(userId);
+        if (cachedPermissions != null && !cachedPermissions.isEmpty()) {
+            log.debug("从缓存中获取用户权限编码, 用户ID: {}, 权限数量: {}", userId, cachedPermissions.size());
+            return cachedPermissions;
+        }
+        
+        // 缓存中不存在，从数据库加载
+        log.debug("从数据库加载用户权限编码, 用户ID: {}", userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("用户不存在: " + userId));
 
@@ -175,7 +201,11 @@ public class PermissionServiceImpl implements PermissionService {
                 permissionCodes.add(permission.getCode())
             )
         );
-
+        
+        // 将权限编码存入缓存
+        permissionCacheService.cacheUserPermissionCodes(userId, permissionCodes);
+        log.debug("用户权限编码已缓存, 用户ID: {}, 权限数量: {}", userId, permissionCodes.size());
+        
         return permissionCodes;
     }
 

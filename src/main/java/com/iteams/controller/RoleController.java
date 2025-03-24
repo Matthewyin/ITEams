@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.iteams.model.dto.pagination.PagedResponse;
 
 import java.util.List;
 
@@ -36,12 +37,13 @@ public class RoleController {
      * @return 角色列表
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<RoleDTO>>> getRoles(
+    public ResponseEntity<ApiResponse<PagedResponse<RoleDTO>>> getRoles(
             @RequestParam(required = false) String name,
             @PageableDefault(size = 10) Pageable pageable) {
         log.info("获取角色列表，查询条件：name={}", name);
         Page<RoleDTO> roles = roleService.getRoles(name, pageable);
-        return ResponseEntity.ok(ApiResponse.success("获取角色列表成功", roles));
+        PagedResponse<RoleDTO> response = PagedResponse.of(roles);
+        return ResponseEntity.ok(ApiResponse.success("获取角色列表成功", response));
     }
 
     /**

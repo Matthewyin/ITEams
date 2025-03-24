@@ -70,30 +70,35 @@ public class User {
     /**
      * 部门
      */
-    @Column(length = 50)
-    private String department;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "department_id")
+    private Department department;
 
     /**
      * 账号是否未过期
      */
+    @Builder.Default
     @Column(name = "account_non_expired")
     private Boolean accountNonExpired = Boolean.TRUE;
 
     /**
      * 账号是否未锁定
      */
+    @Builder.Default
     @Column(name = "account_non_locked")
     private Boolean accountNonLocked = Boolean.TRUE;
 
     /**
      * 凭证是否未过期
      */
+    @Builder.Default
     @Column(name = "credentials_non_expired")
     private Boolean credentialsNonExpired = Boolean.TRUE;
 
     /**
      * 账号是否启用
      */
+    @Builder.Default
     private Boolean enabled = Boolean.TRUE;
 
     /**
@@ -101,6 +106,19 @@ public class User {
      */
     @Column(name = "last_login_time")
     private LocalDateTime lastLoginTime;
+    
+    /**
+     * 登录失败次数
+     */
+    @Builder.Default
+    @Column(name = "login_fail_count")
+    private Integer loginFailCount = 0;
+    
+    /**
+     * 账户锁定时间
+     */
+    @Column(name = "lock_time")
+    private LocalDateTime lockTime;
 
     /**
      * 创建时间
@@ -126,6 +144,19 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles = new HashSet<>();
+
+    /**
+     * 用户组关联
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "sys_user_group_mapping",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "group_id")
+    )
+    @Builder.Default
+    @ToString.Exclude
+    private Set<UserGroup> groups = new HashSet<>();
 
     // 为与Spring Security兼容，提供以下辅助方法
     public boolean isAccountNonExpired() {

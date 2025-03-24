@@ -9,6 +9,7 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -42,6 +43,26 @@ public class GlobalExceptionHandler {
         }
         
         return ApiResponse.error("认证失败");
+    }
+    
+    /**
+     * 处理Spring权限不足异常
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handleSpringAccessDeniedException(AccessDeniedException e) {
+        logger.warn("权限不足: {}", e.getMessage());
+        return ApiResponse.error("没有足够的权限执行此操作");
+    }
+    
+    /**
+     * 处理自定义权限不足异常
+     */
+    @ExceptionHandler(com.iteams.exception.AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handleAccessDeniedException(com.iteams.exception.AccessDeniedException e) {
+        logger.warn("权限验证失败: {}", e.getMessage());
+        return ApiResponse.error(e.getMessage());
     }
 
     /**

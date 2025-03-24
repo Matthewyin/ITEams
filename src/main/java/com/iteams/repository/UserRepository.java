@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -45,17 +46,44 @@ public interface UserRepository extends JpaRepository<User, Long> {
      *
      * @param username 用户名（模糊查询）
      * @param realName 姓名（模糊查询）
-     * @param department 部门（模糊查询）
+     * @param departmentId 部门ID
      * @param pageable 分页参数
      * @return 用户分页列表
      */
     @Query("SELECT u FROM User u WHERE " +
             "(:username IS NULL OR u.username LIKE %:username%) AND " +
             "(:realName IS NULL OR u.realName LIKE %:realName%) AND " +
-            "(:department IS NULL OR u.department LIKE %:department%)")
+            "(:departmentId IS NULL OR u.department.id = :departmentId)")
     Page<User> findByConditions(
             @Param("username") String username,
             @Param("realName") String realName,
-            @Param("department") String department,
+            @Param("departmentId") Long departmentId,
             Pageable pageable);
-} 
+    
+
+    /**
+     * 根据部门ID统计用户数量
+     *
+     * @param departmentId 部门ID
+     * @return 用户数量
+     */
+    long countByDepartmentId(Long departmentId);
+    
+    /**
+     * 根据用户组ID查找用户列表
+     *
+     * @param groupId 用户组ID
+     * @return 用户列表
+     */
+    @Query("SELECT u FROM User u JOIN u.groups g WHERE g.id = :groupId")
+    List<User> findByGroupId(@Param("groupId") Long groupId);
+    
+    /**
+     * 根据用户组ID统计用户数量
+     *
+     * @param groupId 用户组ID
+     * @return 用户数量
+     */
+    @Query("SELECT COUNT(u) FROM User u JOIN u.groups g WHERE g.id = :groupId")
+    long countByGroupId(@Param("groupId") Long groupId);
+}

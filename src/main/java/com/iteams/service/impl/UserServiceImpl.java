@@ -3,9 +3,13 @@ package com.iteams.service.impl;
 import com.iteams.exception.ResourceNotFoundException;
 import com.iteams.model.dto.PasswordDTO;
 import com.iteams.model.dto.UserDTO;
+import com.iteams.model.entity.Department;
 import com.iteams.model.entity.Role;
 import com.iteams.model.entity.User;
+import com.iteams.model.entity.UserGroup;
+import com.iteams.repository.DepartmentRepository;
 import com.iteams.repository.RoleRepository;
+import com.iteams.repository.UserGroupRepository;
 import com.iteams.repository.UserRepository;
 import com.iteams.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -35,6 +40,8 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final DepartmentRepository departmentRepository;
+    private final UserGroupRepository userGroupRepository;
     private final @Lazy PasswordEncoder passwordEncoder;
 
     /**
@@ -77,7 +84,19 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public Page<UserDTO> getUsers(String username, String realName, String department, Pageable pageable) {
-        Page<User> userPage = userRepository.findByConditions(username, realName, department, pageable);
+        // 如果部门参数是数字，则按部门ID查询，否则按部门名称查询
+        final Long[] departmentId = {null};
+        if (department != null && !department.isEmpty()) {
+            try {
+                departmentId[0] = Long.parseLong(department);
+            } catch (NumberFormatException e) {
+                // 如果不是数字，则按名称查询部门
+                departmentRepository.findByName(department)
+                        .ifPresent(dept -> departmentId[0] = dept.getId());
+            }
+        }
+        
+        Page<User> userPage = userRepository.findByConditions(username, realName, departmentId[0], pageable);
         return userPage.map(this::convertToDto);
     }
 
@@ -118,8 +137,23 @@ public class UserServiceImpl implements UserService {
         user.setRealName(userDTO.getRealName());
         user.setEmail(userDTO.getEmail());
         user.setPhone(userDTO.getPhone());
-        user.setDepartment(userDTO.getDepartment());
         user.setCreatedAt(LocalDateTime.now());
+        
+        // 设置部门
+        if (userDTO.getDepartmentId() != null) {
+            Department department = departmentRepository.findById(userDTO.getDepartmentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("部门不存在: " + userDTO.getDepartmentId()));
+            user.setDepartment(department);
+        }
+        
+        // 设置用户组
+        if (userDTO.getGroupIds() != null && !userDTO.getGroupIds().isEmpty()) {
+            Set<UserGroup> groups = new HashSet<>(userGroupRepository.findAllById(userDTO.getGroupIds()));
+            if (groups.isEmpty()) {
+                throw new ResourceNotFoundException("未找到指定用户组");
+            }
+            user.setGroups(groups);
+        }
         
         // 设置用户状态
         if (userDTO.getStatus() != null) {
@@ -149,8 +183,29 @@ public class UserServiceImpl implements UserService {
         user.setRealName(userDTO.getRealName());
         user.setEmail(userDTO.getEmail());
         user.setPhone(userDTO.getPhone());
-        user.setDepartment(userDTO.getDepartment());
         user.setUpdatedAt(LocalDateTime.now());
+        
+        // 更新部门
+        if (userDTO.getDepartmentId() != null) {
+            Department department = departmentRepository.findById(userDTO.getDepartmentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("部门不存在: " + userDTO.getDepartmentId()));
+            user.setDepartment(department);
+        } else {
+            user.setDepartment(null);
+        }
+        
+        // 更新用户组
+        if (userDTO.getGroupIds() != null) {
+            if (userDTO.getGroupIds().isEmpty()) {
+                user.setGroups(new HashSet<>());
+            } else {
+                Set<UserGroup> groups = new HashSet<>(userGroupRepository.findAllById(userDTO.getGroupIds()));
+                if (groups.isEmpty()) {
+                    throw new ResourceNotFoundException("未找到指定用户组");
+                }
+                user.setGroups(groups);
+            }
+        }
         
         // 更新用户状态
         if (userDTO.getStatus() != null) {
@@ -176,10 +231,9 @@ public class UserServiceImpl implements UserService {
         user.setRealName(userDTO.getRealName());
         user.setEmail(userDTO.getEmail());
         user.setPhone(userDTO.getPhone());
-        user.setDepartment(userDTO.getDepartment());
         user.setUpdatedAt(LocalDateTime.now());
         
-        // 普通用户不能修改自己的状态，只有管理员可以
+        // 普通用户不能修改自己的部门、用户组和状态，只有管理员可以
 
         // 保存用户
         User savedUser = userRepository.save(user);
@@ -275,7 +329,26 @@ public class UserServiceImpl implements UserService {
         dto.setRealName(user.getRealName());
         dto.setEmail(user.getEmail());
         dto.setPhone(user.getPhone());
-        dto.setDepartment(user.getDepartment());
+        dto.setAvatarUrl(user.getAvatarUrl());
+        
+        // 设置部门信息
+        if (user.getDepartment() != null) {
+            dto.setDepartmentId(user.getDepartment().getId());
+            dto.setDepartmentName(user.getDepartment().getName());
+        }
+        
+        // 设置用户组信息
+        if (user.getGroups() != null && !user.getGroups().isEmpty()) {
+            Set<Long> groupIds = user.getGroups().stream()
+                    .map(UserGroup::getId)
+                    .collect(Collectors.toSet());
+            dto.setGroupIds(groupIds);
+            
+            Set<String> groupNames = user.getGroups().stream()
+                    .map(UserGroup::getName)
+                    .collect(Collectors.toSet());
+            dto.setGroupNames(groupNames);
+        }
         
         // 设置状态，将Boolean转换为Integer
         dto.setStatus(user.isEnabled() ? 1 : 0);
@@ -328,5 +401,302 @@ public class UserServiceImpl implements UserService {
             log.error("重置密码失败: {}", e.getMessage(), e);
             return false;
         }
+    }
+    
+    /**
+     * 更新用户头像
+     */
+    @Override
+    @Transactional
+    public UserDTO updateUserAvatar(Long userId, String avatarUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("用户不存在: " + userId));
+        
+        // 如果有旧头像，可以在这里添加删除旧头像的逻辑
+        
+        // 更新头像
+        user.setAvatarUrl(avatarUrl);
+        user.setUpdatedAt(LocalDateTime.now());
+        User savedUser = userRepository.save(user);
+        
+        return convertToDto(savedUser);
+    }
+    
+    /**
+     * 更新当前用户头像
+     */
+    @Override
+    @Transactional
+    public UserDTO updateCurrentUserAvatar(String avatarUrl) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("用户不存在: " + username));
+        
+        // 如果有旧头像，可以在这里添加删除旧头像的逻辑
+        
+        // 更新头像
+        user.setAvatarUrl(avatarUrl);
+        user.setUpdatedAt(LocalDateTime.now());
+        User savedUser = userRepository.save(user);
+        
+        return convertToDto(savedUser);
+    }
+    
+    /**
+     * 批量创建用户
+     */
+    @Override
+    @Transactional
+    public List<UserDTO> batchCreateUsers(List<UserDTO> userDTOs) {
+        log.info("批量创建用户, 数量: {}", userDTOs.size());
+        
+        // 验证用户名是否重复
+        Set<String> usernames = userDTOs.stream()
+                .map(UserDTO::getUsername)
+                .collect(Collectors.toSet());
+        
+        // 检查用户名是否已存在
+        List<String> existingUsernames = new ArrayList<>();
+        for (String username : usernames) {
+            if (userRepository.existsByUsername(username)) {
+                existingUsernames.add(username);
+            }
+        }
+        
+        if (!existingUsernames.isEmpty()) {
+            throw new IllegalArgumentException("以下用户名已存在: " + String.join(", ", existingUsernames));
+        }
+        
+        // 获取默认角色
+        Role userRole = roleRepository.findByCode("USER")
+                .orElseThrow(() -> new ResourceNotFoundException("角色不存在: USER"));
+        
+        // 创建用户列表
+        List<User> users = new ArrayList<>();
+        for (UserDTO userDTO : userDTOs) {
+            User user = new User();
+            user.setUsername(userDTO.getUsername());
+            user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+            user.setRealName(userDTO.getRealName());
+            user.setEmail(userDTO.getEmail());
+            user.setPhone(userDTO.getPhone());
+            user.setCreatedAt(LocalDateTime.now());
+            
+            // 设置部门
+            if (userDTO.getDepartmentId() != null) {
+                departmentRepository.findById(userDTO.getDepartmentId())
+                        .ifPresent(user::setDepartment);
+            }
+            
+            // 设置用户状态
+            if (userDTO.getStatus() != null) {
+                user.setEnabled(userDTO.getStatus() == 1);
+            }
+            
+            // 设置默认角色
+            user.setRoles(Collections.singleton(userRole));
+            
+            users.add(user);
+        }
+        
+        // 保存用户
+        List<User> savedUsers = userRepository.saveAll(users);
+        log.info("批量创建用户成功, 数量: {}", savedUsers.size());
+        
+        // 转换为DTO
+        return savedUsers.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * 批量删除用户
+     */
+    @Override
+    @Transactional
+    public int batchDeleteUsers(List<Long> ids) {
+        log.info("批量删除用户, 数量: {}", ids.size());
+        
+        // 检查用户是否存在
+        List<User> users = userRepository.findAllById(ids);
+        if (users.size() != ids.size()) {
+            // 找出不存在的用户ID
+            Set<Long> existingIds = users.stream()
+                    .map(User::getId)
+                    .collect(Collectors.toSet());
+            
+            List<Long> nonExistingIds = ids.stream()
+                    .filter(id -> !existingIds.contains(id))
+                    .collect(Collectors.toList());
+            
+            log.warn("部分用户不存在: {}", nonExistingIds);
+        }
+        
+        // 删除用户
+        userRepository.deleteAllById(ids);
+        log.info("批量删除用户成功, 数量: {}", users.size());
+        
+        return users.size();
+    }
+    
+    /**
+     * 批量启用用户
+     */
+    @Override
+    @Transactional
+    public int batchEnableUsers(List<Long> ids) {
+        log.info("批量启用用户, 数量: {}", ids.size());
+        
+        // 获取用户列表
+        List<User> users = userRepository.findAllById(ids);
+        if (users.isEmpty()) {
+            log.warn("未找到要启用的用户");
+            return 0;
+        }
+        
+        // 启用用户
+        int count = 0;
+        for (User user : users) {
+            if (!user.isEnabled()) {
+                user.setEnabled(true);
+                user.setUpdatedAt(LocalDateTime.now());
+                count++;
+            }
+        }
+        
+        // 保存用户
+        userRepository.saveAll(users);
+        log.info("批量启用用户成功, 实际启用数量: {}", count);
+        
+        return count;
+    }
+    
+    /**
+     * 批量禁用用户
+     */
+    @Override
+    @Transactional
+    public int batchDisableUsers(List<Long> ids) {
+        log.info("批量禁用用户, 数量: {}", ids.size());
+        
+        // 获取用户列表
+        List<User> users = userRepository.findAllById(ids);
+        if (users.isEmpty()) {
+            log.warn("未找到要禁用的用户");
+            return 0;
+        }
+        
+        // 禁用用户
+        int count = 0;
+        for (User user : users) {
+            if (user.isEnabled()) {
+                user.setEnabled(false);
+                user.setUpdatedAt(LocalDateTime.now());
+                count++;
+            }
+        }
+        
+        // 保存用户
+        userRepository.saveAll(users);
+        log.info("批量禁用用户成功, 实际禁用数量: {}", count);
+        
+        return count;
+    }
+    
+    /**
+     * 批量分配角色
+     */
+    @Override
+    @Transactional
+    public int batchAssignRoles(List<Long> userIds, List<Long> roleIds) {
+        log.info("批量分配角色, 用户数量: {}, 角色数量: {}", userIds.size(), roleIds.size());
+        
+        // 获取用户列表
+        List<User> users = userRepository.findAllById(userIds);
+        if (users.isEmpty()) {
+            log.warn("未找到要分配角色的用户");
+            return 0;
+        }
+        
+        // 获取角色列表
+        List<Role> roles = roleRepository.findAllById(roleIds);
+        if (roles.isEmpty()) {
+            log.warn("未找到要分配的角色");
+            return 0;
+        }
+        
+        // 分配角色
+        Set<Role> roleSet = new HashSet<>(roles);
+        for (User user : users) {
+            user.setRoles(roleSet);
+            user.setUpdatedAt(LocalDateTime.now());
+        }
+        
+        // 保存用户
+        userRepository.saveAll(users);
+        log.info("批量分配角色成功, 分配用户数量: {}", users.size());
+        
+        return users.size();
+    }
+    
+    /**
+     * 解锁用户账户
+     *
+     * @param userId 用户ID
+     * @return 解锁后的用户
+     */
+    @Override
+    @Transactional
+    public UserDTO unlockUserAccount(Long userId) {
+        log.info("开始解锁用户账户，用户ID: {}", userId);
+        
+        // 获取当前用户信息（执行解锁操作的管理员）
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new UsernameNotFoundException("当前用户不存在: " + currentUsername));
+        
+        // 获取要解锁的用户
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("用户不存在，ID: " + userId));
+        
+        // 检查当前用户是否有权限解锁目标用户
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(role -> "ROLE_ADMIN".equals(role.getName()) || "ROLE_SUPER_ADMIN".equals(role.getName()));
+        
+        // 检查目标用户是否是超级管理员
+        boolean isTargetSuperAdmin = user.getRoles().stream()
+                .anyMatch(role -> "ROLE_SUPER_ADMIN".equals(role.getName()));
+        
+        // 检查当前用户是否是超级管理员
+        boolean isCurrentSuperAdmin = currentUser.getRoles().stream()
+                .anyMatch(role -> "ROLE_SUPER_ADMIN".equals(role.getName()));
+        
+        // 如果目标用户是超级管理员，且当前用户不是超级管理员，则无权解锁
+        if (isTargetSuperAdmin && !isCurrentSuperAdmin) {
+            log.warn("用户[{}]尝试解锁超级管理员[{}]账户，权限不足", currentUsername, user.getUsername());
+            throw new SecurityException("您没有权限解锁超级管理员账户");
+        }
+        
+        // 如果当前用户不是管理员，则无权解锁任何账户
+        if (!isAdmin) {
+            log.warn("非管理员用户[{}]尝试解锁用户[{}]账户", currentUsername, user.getUsername());
+            throw new SecurityException("您没有权限解锁用户账户");
+        }
+        
+        // 检查账户是否已锁定
+        if (user.isAccountNonLocked()) {
+            log.info("用户[{}]账户已经处于解锁状态", user.getUsername());
+            return convertToDto(user);
+        }
+        
+        // 解锁账户
+        user.setAccountNonLocked(true);
+        user.setLockTime(null);
+        user.setLoginFailCount(0);
+        User savedUser = userRepository.save(user);
+        
+        log.info("用户[{}]账户已被管理员[{}]手动解锁", user.getUsername(), currentUsername);
+        
+        return convertToDto(savedUser);
     }
 } 

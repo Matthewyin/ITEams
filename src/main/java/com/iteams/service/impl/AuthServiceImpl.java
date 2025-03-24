@@ -1,5 +1,6 @@
 package com.iteams.service.impl;
 
+import com.iteams.config.LoginSecurityConfig;
 import com.iteams.model.dto.LoginRequestDTO;
 import com.iteams.model.dto.LoginResponseDTO;
 import com.iteams.model.dto.UserInfoDTO;
@@ -8,11 +9,11 @@ import com.iteams.repository.UserRepository;
 import com.iteams.service.AuthService;
 import com.iteams.util.JwtUtil;
 import com.iteams.util.LogHelper;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,10 +22,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -42,6 +42,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final LogHelper logHelper;
+    private final LoginSecurityConfig loginSecurityConfig;
 
     /**
      * 用户登录
@@ -50,7 +51,7 @@ public class AuthServiceImpl implements AuthService {
      * @return 登录响应
      */
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = {BadCredentialsException.class, LockedException.class, UsernameNotFoundException.class})
     public LoginResponseDTO login(LoginRequestDTO loginRequest) {
         try {
             log.info("开始认证用户: {}", loginRequest.getUsername());
@@ -61,6 +62,28 @@ public class AuthServiceImpl implements AuthService {
                 User user = userOpt.get();
                 // 简化日志，不再输出详细的用户信息
                 log.info("验证用户状态: {}", loginRequest.getUsername());
+                
+                // 检查账户是否被锁定
+                if (!user.isAccountNonLocked()) {
+                    // 检查锁定时间是否已过期
+                    if (user.getLockTime() != null) {
+                        LocalDateTime unlockTime = user.getLockTime().plus(loginSecurityConfig.getLockDurationMinutes(), ChronoUnit.MINUTES);
+                        if (LocalDateTime.now().isAfter(unlockTime)) {
+                            // 锁定时间已过，解锁账户
+                            user.setAccountNonLocked(true);
+                            user.setLockTime(null);
+                            user.setLoginFailCount(0);
+                            userRepository.save(user);
+                            log.info("用户[{}]锁定时间已过，账户已自动解锁", user.getUsername());
+                        } else {
+                            // 账户仍处于锁定状态
+                            long remainingMinutes = LocalDateTime.now().until(unlockTime, ChronoUnit.MINUTES);
+                            log.warn("用户[{}]账户已锁定，剩余锁定时间: {}分钟", user.getUsername(), remainingMinutes);
+                            logHelper.recordLoginLog(user, false, "账户已锁定，尝试登录失败。剩余锁定时间: " + remainingMinutes + "分钟");
+                            throw new LockedException("账户已锁定，请在" + remainingMinutes + "分钟后再试");
+                        }
+                    }
+                }
                 
                 // 仅用于调试不匹配的密码，只在开发环境使用
                 boolean passwordMatches = passwordEncoder.matches(loginRequest.getPassword(), user.getPassword());
@@ -98,51 +121,113 @@ public class AuthServiceImpl implements AuthService {
                 );
                 // 登录成功只记录简单信息
                 log.info("用户登录成功: {}", loginRequest.getUsername());
+                
+                // 设置认证信息到上下文
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                
+                // 获取用户详情
+                UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+                
+                // 生成JWT令牌
+                String token = jwtUtil.generateToken(userDetails, loginRequest.isRemember());
+                log.debug("已生成JWT令牌: {}", token);
+                
+                // 更新最后登录时间和重置登录失败次数
+                User user = userRepository.findByUsername(loginRequest.getUsername())
+                        .orElseThrow(() -> new UsernameNotFoundException("用户不存在: " + loginRequest.getUsername()));
+                
+                user.setLastLoginTime(LocalDateTime.now());
+                user.setLoginFailCount(0); // 登录成功，重置失败次数
+                userRepository.save(user);
+                log.info("用户登录成功：{}", user.getUsername());
+                
+                // 获取用户信息
+                UserInfoDTO userInfo = getUserInfoFromDatabase(user);
+                
+                // 记录登录成功日志 - 情况1: 合法用户，登录成功
+                logHelper.recordLoginLog(user, true, "用户登录成功");
+                
+                // 返回登录响应
+                return LoginResponseDTO.builder()
+                        .token(token)
+                        .userInfo(userInfo)
+                        .status(LoginResponseDTO.LoginStatus.SUCCESS)
+                        .build();
+                
             } catch (BadCredentialsException e) {
                 // 登录失败时记录用户名和密码
                 log.error("用户[{}]认证失败，密码错误。尝试使用的密码: {}", loginRequest.getUsername(), loginRequest.getPassword());
                 // 记录登录失败日志 - 情况2: 合法用户，密码错误
                 User user = userRepository.findByUsername(loginRequest.getUsername()).orElse(null);
-                logHelper.recordLoginLog(user, false, "合法用户登录失败：密码错误，尝试的密码: " + loginRequest.getPassword());
-                throw e;
+                if (user != null) {
+                    // 更新登录失败次数
+                    int failCount = user.getLoginFailCount() == null ? 1 : user.getLoginFailCount() + 1;
+                    user.setLoginFailCount(failCount);
+                    
+                    // 检查是否达到最大失败次数
+                    if (failCount >= loginSecurityConfig.getMaxFailAttempts()) {
+                        user.setAccountNonLocked(false);
+                        user.setLockTime(LocalDateTime.now());
+                        LocalDateTime unlockTime = user.getLockTime().plus(loginSecurityConfig.getLockDurationMinutes(), ChronoUnit.MINUTES);
+                        log.warn("用户[{}]登录失败次数达到上限({}次)，账户已锁定{}分钟", 
+                                user.getUsername(), 
+                                loginSecurityConfig.getMaxFailAttempts(),
+                                loginSecurityConfig.getLockDurationMinutes());
+                        logHelper.recordLoginLog(user, false, "账户已锁定：登录失败次数达到上限" + 
+                                loginSecurityConfig.getMaxFailAttempts() + "次，锁定" + 
+                                loginSecurityConfig.getLockDurationMinutes() + "分钟");
+                        
+                        // 立即刷新并保存用户状态
+                        userRepository.saveAndFlush(user);
+                        
+                        // 返回锁定状态和解锁时间
+                        return LoginResponseDTO.builder()
+                                .status(LoginResponseDTO.LoginStatus.LOCKED)
+                                .unlockTime(unlockTime)
+                                .build();
+                    } else {
+                        log.warn("用户[{}]登录失败，还剩{}次尝试机会", 
+                                user.getUsername(), 
+                                loginSecurityConfig.getMaxFailAttempts() - failCount);
+                        logHelper.recordLoginLog(user, false, "合法用户登录失败：密码错误，尝试的密码: " + 
+                                loginRequest.getPassword() + "，还剩" + 
+                                (loginSecurityConfig.getMaxFailAttempts() - failCount) + "次尝试机会");
+                        
+                        // 立即刷新并保存用户状态
+                        userRepository.saveAndFlush(user);
+                        
+                        // 返回失败状态和剩余尝试次数
+                        return LoginResponseDTO.builder()
+                                .status(LoginResponseDTO.LoginStatus.FAILED)
+                                .remainingAttempts(loginSecurityConfig.getMaxFailAttempts() - failCount)
+                                .build();
+                    }
+                } else {
+                    logHelper.recordLoginLog(null, false, "合法用户登录失败：密码错误，尝试的密码: " + loginRequest.getPassword());
+                    // 返回失败状态
+                    return LoginResponseDTO.builder()
+                            .status(LoginResponseDTO.LoginStatus.FAILED)
+                            .build();
+                }
+            } catch (LockedException e) {
+                // 账户锁定异常处理
+                log.error("用户[{}]账户已锁定", loginRequest.getUsername());
+                User user = userRepository.findByUsername(loginRequest.getUsername()).orElse(null);
+                if (user != null && user.getLockTime() != null) {
+                    LocalDateTime unlockTime = user.getLockTime().plus(loginSecurityConfig.getLockDurationMinutes(), ChronoUnit.MINUTES);
+                    return LoginResponseDTO.builder()
+                            .status(LoginResponseDTO.LoginStatus.LOCKED)
+                            .unlockTime(unlockTime)
+                            .build();
+                } else {
+                    return LoginResponseDTO.builder()
+                            .status(LoginResponseDTO.LoginStatus.LOCKED)
+                            .build();
+                }
             }
             
-            // 设置认证信息到上下文
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            
-            // 获取用户详情
-            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            
-            // 生成JWT令牌
-            String token = jwtUtil.generateToken(userDetails, loginRequest.isRemember());
-            log.debug("已生成JWT令牌: {}", token);
-            
-            // 更新最后登录时间
-            User user = userRepository.findByUsername(loginRequest.getUsername())
-                    .orElseThrow(() -> new UsernameNotFoundException("用户不存在: " + loginRequest.getUsername()));
-            
-            user.setLastLoginTime(LocalDateTime.now());
-            userRepository.save(user);
-            log.info("用户登录成功：{}", user.getUsername());
-            
-            // 获取用户信息
-            UserInfoDTO userInfo = getUserInfoFromDatabase(user);
-            
-            // 记录登录成功日志 - 情况1: 合法用户，登录成功
-            logHelper.recordLoginLog(user, true, "用户登录成功");
-            
-            // 返回登录响应
-            return LoginResponseDTO.builder()
-                    .token(token)
-                    .userInfo(userInfo)
-                    .build();
-            
-        } catch (BadCredentialsException e) {
-            // 登录失败时记录用户名
-            log.error("登录失败：用户[{}]凭证无效", loginRequest.getUsername(), e);
-            throw new BadCredentialsException("用户名或密码错误");
         } catch (Exception e) {
-            // 登录失败时记录用户名
+            // 其他异常处理
             log.error("用户[{}]登录处理过程中发生错误: {}", loginRequest.getUsername(), e.getMessage(), e);
             throw new RuntimeException("登录失败：" + e.getMessage());
         }
