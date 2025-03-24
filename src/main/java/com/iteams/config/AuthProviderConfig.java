@@ -18,7 +18,6 @@ public class AuthProviderConfig {
 
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
-    private final DaoAuthenticationProvider authenticationProvider;
 
     /**
      * 在构造函数中配置日志增强的认证提供者
@@ -28,7 +27,6 @@ public class AuthProviderConfig {
                           DaoAuthenticationProvider authenticationProvider) {
         this.userDetailsService = userDetailsService;
         this.passwordEncoder = passwordEncoder;
-        this.authenticationProvider = authenticationProvider;
         
         // 增强认证提供者的密码验证功能，添加日志
         configureAuthProvider(authenticationProvider);

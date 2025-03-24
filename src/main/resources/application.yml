@@ -36,9 +36,18 @@ spring:
     password: netPA-2025            # 数据库密码（生产环境应使用加密配置）
     driver-class-name: com.mysql.cj.jdbc.Driver  # MySQL 8.0+驱动类
     hikari:                         # Hikari连接池配置，Spring Boot默认连接池
-      maximum-pool-size: 20         # 最大连接数，根据并发量调整
+      maximum-pool-size: 15         # 最大连接数，根据并发量调整（减少以避免过度竞争）
       minimum-idle: 5               # 最小空闲连接数
       connection-timeout: 30000     # 连接超时时间（毫秒）
+      idle-timeout: 300000          # 连接空闲超时时间（5分钟），超时将被回收
+      max-lifetime: 1800000         # 连接最大生命周期（30分钟），防止长期占用
+      keepalive-time: 60000         # 保活时间（1分钟），定期检查连接活性
+      validation-timeout: 5000      # 连接验证超时时间（5秒）
+      leak-detection-threshold: 60000 # 连接泄漏检测阈值（60秒），超过此时间未返回将视为泄漏
+      register-mbeans: true         # 注册JMX管理Bean，便于监控
+      pool-name: HikariPool-ITEAMS  # 自定义连接池名称，便于日志区分
+      auto-commit: true             # 自动提交
+      initialization-fail-timeout: 1000 # 初始化失败超时时间
   
   # 数据库初始化配置
   sql:
@@ -61,6 +70,12 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect  # 数据库方言，适用于MySQL 8.0+
         jdbc:
           batch_size: 50            # JDBC批处理大小，提高批量操作性能
+          fetch_size: 50            # JDBC批量获取大小，优化查询性能
+        connection:
+          provider_disables_autocommit: false  # 不禁用自动提交
+        order_inserts: true         # 对插入操作排序，优化批处理
+        order_updates: true         # 对更新操作排序，优化批处理
+        generate_statistics: false  # 不生成统计信息，降低开销
     defer-datasource-initialization: true # 确保在JPA初始化后再执行SQL脚本
   
   # 文件上传配置
@@ -82,6 +97,10 @@ spring:
         queue-capacity: 25          # 任务队列容量，超过后创建新线程
         keep-alive: 60s             # 线程空闲存活时间，超时回收
       thread-name-prefix: async-task-  # 线程名前缀，用于日志区分
+    scheduling:                      # 调度任务配置
+      pool:
+        size: 3                     # 调度任务线程池大小
+      thread-name-prefix: scheduled-task- # 调度任务线程名前缀
 
 # 自定义配置项
 # 项目特定的参数配置
@@ -148,3 +167,5 @@ logging:
     root: INFO
     org.springframework.security: DEBUG
     com.iteams: DEBUG
+    com.zaxxer.hikari: INFO        # 添加Hikari连接池日志级别
+    com.zaxxer.hikari.HikariConfig: DEBUG  # 启动时输出Hikari配置

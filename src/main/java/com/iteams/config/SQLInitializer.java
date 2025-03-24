@@ -58,11 +58,12 @@ public class SQLInitializer implements CommandLineRunner {
             }
             
             // 检查角色是否存在
-            int roleCount = jdbcTemplate.queryForObject(
+            Integer roleCountObj = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM sys_role WHERE code = ?", 
                 Integer.class, 
                 roleCode
             );
+            int roleCount = (roleCountObj != null) ? roleCountObj : 0;
             
             if (roleCount == 0) {
                 jdbcTemplate.update(
@@ -98,11 +99,12 @@ public class SQLInitializer implements CommandLineRunner {
         }
         
         // 确保SUPER_ADMIN角色存在
-        int roleCount = jdbcTemplate.queryForObject(
+        Integer roleCountObj = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM sys_role WHERE code = ?", 
             Integer.class, 
             roleCode
         );
+        int roleCount = (roleCountObj != null) ? roleCountObj : 0;
         
         if (roleCount == 0) {
             log.warn("超级管理员角色[{}]不存在，尝试创建", roleCode);
@@ -117,11 +119,12 @@ public class SQLInitializer implements CommandLineRunner {
         }
         
         // 检查超级管理员用户是否存在
-        int superAdminCount = jdbcTemplate.queryForObject(
+        Integer superAdminCountObj = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM sys_user WHERE username = ?", 
             Integer.class, 
             username
         );
+        int superAdminCount = (superAdminCountObj != null) ? superAdminCountObj : 0;
         
         if (superAdminCount == 0) {
             // 获取或生成密码哈希
@@ -169,11 +172,12 @@ public class SQLInitializer implements CommandLineRunner {
             );
             
             // 检查用户和角色是否已关联
-            int userRoleCount = jdbcTemplate.queryForObject(
+            Integer userRoleCountObj = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM sys_user_role WHERE user_id = ? AND role_id = ?", 
                 Integer.class, 
                 userId, roleId
             );
+            int userRoleCount = (userRoleCountObj != null) ? userRoleCountObj : 0;
             
             if (userRoleCount == 0) {
                 log.info("用户[{}]未关联超级管理员角色，尝试关联", username);
@@ -208,11 +212,12 @@ public class SQLInitializer implements CommandLineRunner {
             
             if (userId != null && roleId != null) {
                 // 先检查是否已存在关联
-                int existingCount = jdbcTemplate.queryForObject(
+                Integer existingCountObj = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM sys_user_role WHERE user_id = ? AND role_id = ?", 
                     Integer.class, 
                     userId, roleId
                 );
+                int existingCount = (existingCountObj != null) ? existingCountObj : 0;
                 
                 if (existingCount == 0) {
                     // 关联用户和角色
@@ -244,11 +249,12 @@ public class SQLInitializer implements CommandLineRunner {
         // 添加ADMIN角色（如果不存在）
         try {
             // 检查ADMIN角色是否存在
-            int adminRoleCount = jdbcTemplate.queryForObject(
+            Integer adminRoleCountObj = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM sys_role WHERE code = ?", 
                 Integer.class, 
                 "ADMIN"
             );
+            int adminRoleCount = (adminRoleCountObj != null) ? adminRoleCountObj : 0;
             
             if (adminRoleCount == 0) {
                 jdbcTemplate.update(
@@ -269,11 +275,12 @@ public class SQLInitializer implements CommandLineRunner {
             );
             
             // 关联用户和ADMIN角色
-            int userRoleCount = jdbcTemplate.queryForObject(
+            Integer userRoleCountObj = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM sys_user_role WHERE user_id = ? AND role_id = ?", 
                 Integer.class, 
                 userId, adminRoleId
             );
+            int userRoleCount = (userRoleCountObj != null) ? userRoleCountObj : 0;
             
             if (userRoleCount == 0) {
                 jdbcTemplate.update(
@@ -284,11 +291,12 @@ public class SQLInitializer implements CommandLineRunner {
             }
             
             // 检查administrator角色是否存在
-            int administratorRoleCount = jdbcTemplate.queryForObject(
+            Integer administratorRoleCountObj = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM sys_role WHERE code = ?", 
                 Integer.class, 
                 "administrator"
             );
+            int administratorRoleCount = (administratorRoleCountObj != null) ? administratorRoleCountObj : 0;
             
             if (administratorRoleCount == 0) {
                 jdbcTemplate.update(
@@ -309,11 +317,12 @@ public class SQLInitializer implements CommandLineRunner {
             );
             
             // 关联用户和administrator角色
-            int adminUserRoleCount = jdbcTemplate.queryForObject(
+            Integer adminUserRoleCountObj = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM sys_user_role WHERE user_id = ? AND role_id = ?", 
                 Integer.class, 
                 userId, administratorRoleId
             );
+            int adminUserRoleCount = (adminUserRoleCountObj != null) ? adminUserRoleCountObj : 0;
             
             if (adminUserRoleCount == 0) {
                 jdbcTemplate.update(

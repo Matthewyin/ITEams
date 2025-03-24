@@ -11,6 +11,8 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.lang.NonNull;
+
 /**
  * 角色数据访问接口
  */
@@ -48,5 +50,7 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
      *
      * @return 角色列表
      */
+    @Override
+    @NonNull
     List<Role> findAll();
 } 

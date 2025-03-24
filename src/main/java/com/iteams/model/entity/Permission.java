@@ -2,6 +2,7 @@ package com.iteams.model.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.Builder.Default;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.proxy.HibernateProxy;
@@ -74,6 +75,7 @@ public class Permission {
      */
     @ManyToMany(mappedBy = "permissions")
     @ToString.Exclude
+    @Default
     private Set<Role> roles = new HashSet<>();
 
     @Override

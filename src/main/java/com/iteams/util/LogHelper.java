@@ -17,7 +17,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -266,6 +265,7 @@ public class LogHelper {
             // 尝试从JSON请求体获取
             if (request.getContentType() != null && request.getContentType().contains("application/json")) {
                 // 尝试读取请求体中的用户名
+                @SuppressWarnings("unchecked")
                 Map<String, Object> userMap = JsonUtil.fromJson(request.getReader().lines()
                         .collect(Collectors.joining(System.lineSeparator())), Map.class);
                 if (userMap != null && userMap.containsKey("username")) {

@@ -630,24 +630,7 @@ public class ImportServiceImpl implements ImportService {
             return value != null ? value.toString() : null;
         }
         
-        // 辅助方法：安全地获取Long
-        private Long getLongOrNull(Object value) {
-            if (value == null) return null;
-            
-            try {
-                if (value instanceof Number) {
-                    return ((Number) value).longValue();
-                } else if (value instanceof String) {
-                    String strValue = (String) value;
-                    if (strValue.trim().isEmpty()) return null;
-                    return Long.parseLong(strValue);
-                }
-            } catch (Exception e) {
-                log.warn("Long解析失败: {}", value);
-            }
-            
-            return null;
-        }
+        // 此处移除了未使用的getLongOrNull方法
         
         // 辅助方法：安全地获取Double
         private Double getDoubleOrNull(Object value) {

@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -34,5 +35,6 @@ public class RoleDTO {
     @Size(max = 200, message = "角色描述长度不能超过200个字符")
     private String description;
 
+    @Default
     private Set<String> permissions = new HashSet<>();
 } 

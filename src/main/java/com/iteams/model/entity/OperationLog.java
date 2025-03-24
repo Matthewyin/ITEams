@@ -5,7 +5,7 @@ import com.iteams.model.enums.OperationType;
 import com.iteams.model.enums.StatusType;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.proxy.HibernateProxy;
 
 import java.time.LocalDateTime;
@@ -39,8 +39,8 @@ public class OperationLog {
      * 主键ID
      */
     @Id
-    @GeneratedValue(generator = "uuid")
-    @GenericGenerator(name = "uuid", strategy = "uuid2")
+    @GeneratedValue
+    @UuidGenerator
     private String id;
     
     /**

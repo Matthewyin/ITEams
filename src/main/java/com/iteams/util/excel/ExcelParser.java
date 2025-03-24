@@ -34,60 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 public class ExcelParser {
 
-    /**
-     * 默认表头映射
-     * <p>
-     * 定义了标准资产导入模板中的列名及其期望的列索引。
-     * 这个映射用于验证上传的Excel是否符合预期格式，
-     * 并在解析过程中定位特定列的位置。
-     * </p>
-     */
-    private static final Map<String, Integer> DEFAULT_HEADER_MAP = Map.ofEntries(
-            Map.entry("资产编号", 0),
-            Map.entry("资产名称", 1),
-            Map.entry("资产分类", 2),
-            Map.entry("使用人", 3),
-            Map.entry("入账日期", 4),
-            Map.entry("使用部门", 5),
-            Map.entry("合同号", 6),
-            Map.entry("一级分类", 7),
-            Map.entry("二级分类", 8),
-            Map.entry("三级分类", 9),
-            Map.entry("品牌", 10),
-            Map.entry("型号", 11),
-            Map.entry("序列号", 12),
-            Map.entry("变更记录", 13),
-            Map.entry("数据中心", 14),
-            Map.entry("机房名称", 15),
-            Map.entry("机柜编号", 16),
-            Map.entry("U位编号", 17),
-            Map.entry("使用环境", 18),
-            Map.entry("保管人", 19),
-            Map.entry("资产状态", 20),
-            Map.entry("应用系统/项目", 21),
-            Map.entry("到货验收日期", 22),
-            Map.entry("资产使用年限(年)", 23),
-            Map.entry("维保开始日期", 24),
-            Map.entry("维保结束日期", 25),
-            Map.entry("维保提供商", 26),
-            Map.entry("维保状态", 27),
-            Map.entry("备注", 28),
-            Map.entry("变更后数据中心", 29),
-            Map.entry("变更后机房名称", 30),
-            Map.entry("变更后机柜编号", 31),
-            Map.entry("变更后U位编号", 32),
-            Map.entry("变更后使用环境", 33),
-            Map.entry("变更后保管人", 34),
-            Map.entry("变更后应用系统/项目", 35),
-            Map.entry("变更后型号", 36),
-            Map.entry("变更后序列号", 37),
-            Map.entry("变更后资产状态", 38),
-            Map.entry("初始化", 39),
-            Map.entry("拥有者", 40),
-            Map.entry("创建人", 41),
-            Map.entry("创建时间", 42),
-            Map.entry("最近更新时间", 43)
-    );
+    // 移除了未使用的DEFAULT_HEADER_MAP字段
 
     /**
      * 任务状态映射表
@@ -127,8 +74,8 @@ public class ExcelParser {
         status.setState(ImportTaskStatus.State.PROCESSING);
         taskStatusMap.put(taskId, status);
         
-        try (InputStream inputStream = file.getInputStream()) {
-            Workbook workbook = new XSSFWorkbook(inputStream);
+        try (InputStream inputStream = file.getInputStream();
+             Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
 
             // 标题行验证

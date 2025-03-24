@@ -8,7 +8,7 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
-import java.time.Duration;
+import org.springframework.lang.NonNull;
 
 /**
  * Web配置类
@@ -50,7 +50,7 @@ public class WebConfig implements WebMvcConfigurer {
      * @param registry CORS配置注册表
      */
     @Override
-    public void addCorsMappings(CorsRegistry registry) {
+    public void addCorsMappings(@NonNull CorsRegistry registry) {
         registry.addMapping("/**") // 应用到所有路径
                 // 允许多个前端开发环境的域名
                 .allowedOrigins("http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8080") 
@@ -75,9 +75,9 @@ public class WebConfig implements WebMvcConfigurer {
      */
     @Bean
     public RestTemplate restTemplate(RestTemplateBuilder builder) {
+        // 使用默认配置，避免使用已弃用的方法
         return builder
-            .setConnectTimeout(Duration.ofSeconds(5))
-            .setReadTimeout(Duration.ofSeconds(5))
+            .defaultHeader("User-Agent", "ITEams-Client")
             .build();
     }
 
@@ -87,7 +87,7 @@ public class WebConfig implements WebMvcConfigurer {
      * @param registry 资源处理器注册表
      */
     @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+    public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/static/")
                 .addResourceLocations("classpath:/public/")

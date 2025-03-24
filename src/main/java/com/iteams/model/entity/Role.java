@@ -2,6 +2,7 @@ package com.iteams.model.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.Builder.Default;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.proxy.HibernateProxy;
@@ -72,6 +73,7 @@ public class Role {
             joinColumns = @JoinColumn(name = "role_id"),
             inverseJoinColumns = @JoinColumn(name = "permission_id")
     )
+    @Default
     private Set<Permission> permissions = new HashSet<>();
 
     /**
@@ -79,6 +81,7 @@ public class Role {
      */
     @ManyToMany(mappedBy = "roles")
     @ToString.Exclude
+    @Default
     private Set<User> users = new HashSet<>();
 
     @Override
