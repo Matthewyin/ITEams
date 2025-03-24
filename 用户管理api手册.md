@@ -207,7 +207,8 @@
 - **响应**:
   ```json
   {
-    "code": 201,
+    "success": true,
+    "code": "201",
     "message": "创建用户成功",
     "data": {
       "id": "long",
@@ -221,7 +222,8 @@
       "groupNames": ["string"],
       "status": "int",
       "roles": ["string"]
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -245,7 +247,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "更新用户成功",
     "data": {
       "id": "long",
@@ -259,7 +262,8 @@
       "groupNames": ["string"],
       "status": "int",
       "roles": ["string"]
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -272,9 +276,11 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "删除用户成功",
-    "data": null
+    "data": null,
+    "timestamp": "long"
   }
   ```
 
@@ -287,11 +293,13 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "重置密码成功",
     "data": {
       "password": "string" // 随机生成的初始密码
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -310,9 +318,11 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "分配角色成功",
-    "data": null
+    "data": null,
+    "timestamp": "long"
   }
   ```
 
@@ -333,7 +343,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "更新个人信息成功",
     "data": {
       "id": "long",
@@ -345,7 +356,8 @@
       "departmentName": "string",
       "groupIds": ["long"],
       "groupNames": ["string"]
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -366,9 +378,11 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "密码修改成功",
-    "data": null
+    "data": null,
+    "timestamp": "long"
   }
   ```
 
@@ -387,7 +401,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "更新头像成功",
     "data": {
       "id": "long",
@@ -401,7 +416,8 @@
       "groupNames": ["string"],
       "status": "int",
       "roles": ["string"]
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -420,7 +436,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "更新头像成功",
     "data": {
       "id": "long",
@@ -433,7 +450,8 @@
       "groupIds": ["long"],
       "groupNames": ["string"],
       "status": "int"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -448,7 +466,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "头像上传成功",
     "data": {
       "id": "long",
@@ -461,7 +480,8 @@
       "groupIds": ["long"],
       "groupNames": ["string"],
       "status": "int"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -476,7 +496,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "头像上传成功",
     "data": {
       "id": "long",
@@ -490,7 +511,8 @@
       "groupNames": ["string"],
       "status": "int",
       "roles": ["string"]
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -503,7 +525,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "用户账户解锁成功",
     "data": {
       "id": "long",
@@ -517,7 +540,8 @@
       "groupNames": ["string"],
       "status": "int",
       "roles": ["string"]
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -711,7 +735,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取角色列表成功",
     "data": {
       "content": [
@@ -725,8 +750,12 @@
       "totalElements": "long",
       "totalPages": "int",
       "size": "int",
-      "number": "int"
-    }
+      "number": "int",
+      "first": "boolean",
+      "last": "boolean",
+      "empty": "boolean"
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -739,7 +768,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取角色列表成功",
     "data": [
       {
@@ -748,7 +778,8 @@
         "code": "string",
         "description": "string"
       }
-    ]
+    ],
+    "timestamp": "long"
   }
   ```
 
@@ -761,14 +792,16 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取角色详情成功",
     "data": {
       "id": "long",
       "name": "string",
       "code": "string",
       "description": "string"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -789,14 +822,16 @@
 - **响应**:
   ```json
   {
-    "code": 201,
+    "success": true,
+    "code": "201",
     "message": "创建角色成功",
     "data": {
       "id": "long",
       "name": "string",
       "code": "string",
       "description": "string"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -817,14 +852,16 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "更新角色成功",
     "data": {
       "id": "long",
       "name": "string",
       "code": "string",
       "description": "string"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -837,9 +874,11 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "删除角色成功",
-    "data": null
+    "data": null,
+    "timestamp": "long"
   }
   ```
 
@@ -852,9 +891,11 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取角色权限成功",
-    "data": ["string"] // 权限编码列表
+    "data": ["string"], // 权限编码列表
+    "timestamp": "long"
   }
   ```
 
@@ -873,9 +914,11 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "分配权限成功",
-    "data": null
+    "data": null,
+    "timestamp": "long"
   }
   ```
 
@@ -888,9 +931,11 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取用户角色成功",
-    "data": ["string"] // 角色编码列表
+    "data": ["string"], // 角色编码列表
+    "timestamp": "long"
   }
   ```
 
@@ -905,7 +950,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取权限列表成功",
     "data": [
       {
@@ -914,7 +960,8 @@
         "code": "string",
         "description": "string"
       }
-    ]
+    ],
+    "timestamp": "long"
   }
   ```
 
@@ -927,14 +974,16 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取权限详情成功",
     "data": {
       "id": "long",
       "name": "string",
       "code": "string",
       "description": "string"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -955,14 +1004,16 @@
 - **响应**:
   ```json
   {
-    "code": 201,
+    "success": true,
+    "code": "201",
     "message": "创建权限成功",
     "data": {
       "id": "long",
       "name": "string",
       "code": "string",
       "description": "string"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -983,14 +1034,16 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "更新权限成功",
     "data": {
       "id": "long",
       "name": "string",
       "code": "string",
       "description": "string"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -1003,9 +1056,11 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "删除权限成功",
-    "data": null
+    "data": null,
+    "timestamp": "long"
   }
   ```
 
@@ -1018,7 +1073,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取角色权限成功",
     "data": [
       {
@@ -1027,7 +1083,8 @@
         "code": "string",
         "description": "string"
       }
-    ]
+    ],
+    "timestamp": "long"
   }
   ```
 
@@ -1324,7 +1381,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取用户组列表成功",
     "data": {
       "content": [
@@ -1363,7 +1421,8 @@
       "numberOfElements": "int",
       "first": "boolean",
       "empty": "boolean"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -1378,7 +1437,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取用户组列表成功",
     "data": [
       {
@@ -1390,7 +1450,8 @@
         "createdTime": "string",
         "updatedTime": "string"
       }
-    ]
+    ],
+    "timestamp": "long"
   }
   ```
 
@@ -1403,7 +1464,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取用户组详情成功",
     "data": {
       "id": "long",
@@ -1413,7 +1475,8 @@
       "enabled": "boolean",
       "createdTime": "string",
       "updatedTime": "string"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -1435,7 +1498,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "创建用户组成功",
     "data": {
       "id": "long",
@@ -1445,7 +1509,8 @@
       "enabled": "boolean",
       "createdTime": "string",
       "updatedTime": "string"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -1467,7 +1532,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "更新用户组成功",
     "data": {
       "id": "long",
@@ -1477,7 +1543,8 @@
       "enabled": "boolean",
       "createdTime": "string",
       "updatedTime": "string"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -1490,9 +1557,11 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "删除用户组成功",
-    "data": null
+    "data": null,
+    "timestamp": "long"
   }
   ```
 
@@ -1508,7 +1577,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "获取用户组用户成功",
     "data": {
       "content": [
@@ -1530,7 +1600,8 @@
       },
       "totalPages": "int",
       "totalElements": "long"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -1549,7 +1620,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "添加用户到用户组成功",
     "data": {
       "id": "long",
@@ -1559,7 +1631,8 @@
       "enabled": "boolean",
       "createdTime": "string",
       "updatedTime": "string"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
@@ -1578,7 +1651,8 @@
 - **响应**:
   ```json
   {
-    "code": 200,
+    "success": true,
+    "code": "200",
     "message": "从用户组移除用户成功",
     "data": {
       "id": "long",
@@ -1588,10 +1662,19 @@
       "enabled": "boolean",
       "createdTime": "string",
       "updatedTime": "string"
-    }
+    },
+    "timestamp": "long"
   }
   ```
 
 ## 8. 总结
+
+所有API响应均包含以下字段：
+
+- `success`: 表示请求是否成功，类型为boolean
+- `code`: 状态码，类型为string
+- `message`: 响应消息，类型为string
+- `data`: 响应数据，类型根据API不同而不同
+- `timestamp`: 响应时间戳，类型为long（毫秒级Unix时间戳）
 
 本文档提供了ITEams系统中与用户管理相关的API接口说明，包括用户认证、用户信息管理、用户批量操作、角色管理、权限管理、部门管理和用户组管理等功能。系统实现了用户登录失败次数限制和账户锁定功能，默认允许5次登录失败，超过后锁定账户30分钟。如有任何问题，请联系系统管理员。

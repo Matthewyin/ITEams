@@ -1,0 +1,57 @@
+
+## 1. 用户管理相关API
+
+### 用户个人信息管理
+
+开发前端页面、API调用等功能，实现1. **更新当前用户信息** - `/api/users/profile`
+开发前端页面、API调用等功能，实现2. **修改当前用户密码** - `/api/users/change-password`
+开发前端页面、API调用等功能，实现3. **更新用户头像** - `/api/users/{id}/avatar`
+开发前端页面、API调用等功能，实现4. **更新当前用户头像** - `/api/users/profile/avatar`
+开发前端页面、API调用等功能，实现5. **上传当前用户头像文件** - `/api/users/profile/avatar/upload`
+开发前端页面、API调用等功能，实现6. **上传用户头像文件** - `/api/users/{id}/avatar/upload`
+开发前端页面、API调用等功能，实现7. **解锁用户账户** - `/api/users/{userId}/unlock`
+
+### 用户批量操作
+
+开发前端页面、API调用等功能，实现1. **批量创建用户** - `/api/users/batch`
+开发前端页面、API调用等功能，实现2. **批量删除用户** - `/api/users/batch`
+开发前端页面、API调用等功能，实现3. **批量启用用户** - `/api/users/batch/enable`
+开发前端页面、API调用等功能，实现4. **批量禁用用户** - `/api/users/batch/disable`
+开发前端页面、API调用等功能，实现5. **批量分配角色** - `/api/users/batch/roles`
+开发前端页面、API调用等功能，实现6. **批量解锁用户账户** - `/api/users/batch/unlock`
+
+## 2. 部门管理API
+
+前端完全没有实现部门管理相关API，包括：
+
+开发前端页面、API调用等功能，实现1. **获取部门列表** - `/api/departments`
+开发前端页面、API调用等功能，实现2. **获取所有部门** - `/api/departments/all`
+开发前端页面、API调用等功能，实现3. **获取部门详情** - `/api/departments/{id}`
+开发前端页面、API调用等功能，实现4. **创建部门** - `/api/departments`
+开发前端页面、API调用等功能，实现5. **更新部门** - `/api/departments/{id}`
+开发前端页面、API调用等功能，实现6. **删除部门** - `/api/departments/{id}`
+开发前端页面、API调用等功能，实现7. **获取部门树** - `/api/departments/tree`
+开发前端页面、API调用等功能，实现8. **获取部门用户** - `/api/departments/{id}/users`
+
+## 3. 用户组管理API
+
+前端完全没有实现用户组管理相关API，包括：
+
+开发前端页面、API调用等功能，实现1. **获取用户组列表** - `/api/groups`
+开发前端页面、API调用等功能，实现2. **获取所有用户组** - `/api/groups/all`
+开发前端页面、API调用等功能，实现3. **获取用户组详情** - `/api/groups/{id}`
+开发前端页面、API调用等功能，实现4. **创建用户组** - `/api/groups`
+开发前端页面、API调用等功能，实现5. **更新用户组** - `/api/groups/{id}`
+开发前端页面、API调用等功能，实现6. **删除用户组** - `/api/groups/{id}`
+开发前端页面、API调用等功能，实现7. **获取用户组用户** - `/api/groups/{id}/users`
+开发前端页面、API调用等功能，实现8. **添加用户到用户组** - `/api/groups/{id}/users`
+开发前端页面、API调用等功能，实现9. **从用户组移除用户** - `/api/groups/{id}/users`
+
+## 4. 权限管理API的部分功能
+
+开发前端页面、API调用等功能，实现1. **获取用户权限编码** - `/api/permissions/user/{userId}/codes`
+开发前端页面、API调用等功能，实现2. **获取用户菜单** - `/api/permissions/user/{userId}/menus`
+
+## 5. 角色管理API的部分功能
+
+开发前端页面、API调用等功能，实现1. **获取除超级管理员外的所有角色** - `/api/roles/all/except-superadmin`

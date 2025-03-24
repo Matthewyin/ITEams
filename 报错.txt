@@ -1,5 +1,0 @@
-/Users/matthewyin/Coding/EITAIS/ITEams/src/main/java/com/iteams/controller/UserGroupController.java:111:57
-java: 无法将接口 com.iteams.service.UserGroupService中的方法 updateUserGroup应用到给定类型;
-  需要: java.lang.Long,com.iteams.model.dto.UserGroupDTO
-  找到:    @jakarta.validation.Valid com.iteams.model.dto.UserGroupDTO
-  原因: 实际参数列表和形式参数列表长度不同
