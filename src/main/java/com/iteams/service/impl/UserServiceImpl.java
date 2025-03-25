@@ -661,15 +661,16 @@ public class UserServiceImpl implements UserService {
         
         // 检查当前用户是否有权限解锁目标用户
         boolean isAdmin = currentUser.getRoles().stream()
-                .anyMatch(role -> "ROLE_ADMIN".equals(role.getName()) || "ROLE_SUPER_ADMIN".equals(role.getName()));
+                .anyMatch(role -> "ROLE_ADMIN".equals(role.getName()) || "ROLE_SUPER_ADMIN".equals(role.getName()) || 
+                               "ADMIN".equals(role.getName()) || "SUPER_ADMIN".equals(role.getName()));
         
         // 检查目标用户是否是超级管理员
         boolean isTargetSuperAdmin = user.getRoles().stream()
-                .anyMatch(role -> "ROLE_SUPER_ADMIN".equals(role.getName()));
+                .anyMatch(role -> "ROLE_SUPER_ADMIN".equals(role.getName()) || "SUPER_ADMIN".equals(role.getName()));
         
         // 检查当前用户是否是超级管理员
         boolean isCurrentSuperAdmin = currentUser.getRoles().stream()
-                .anyMatch(role -> "ROLE_SUPER_ADMIN".equals(role.getName()));
+                .anyMatch(role -> "ROLE_SUPER_ADMIN".equals(role.getName()) || "SUPER_ADMIN".equals(role.getName()));
         
         // 如果目标用户是超级管理员，且当前用户不是超级管理员，则无权解锁
         if (isTargetSuperAdmin && !isCurrentSuperAdmin) {
