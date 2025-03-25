@@ -1,3 +1,9 @@
+-- 检查系统管理部是否存在，如果不存在则创建
+INSERT INTO sys_department (name, code, description, created_at)
+SELECT '系统管理部', 'SYS_ADMIN', '系统管理部门', CURRENT_TIMESTAMP
+FROM dual
+WHERE NOT EXISTS (SELECT 1 FROM sys_department WHERE code = 'SYS_ADMIN');
+
 -- 检查超级管理员角色是否存在，如果不存在则创建
 INSERT INTO sys_role (name, code, description, created_at)
 SELECT '超级管理员', 'SUPER_ADMIN', '系统超级管理员，拥有所有权限', CURRENT_TIMESTAMP
@@ -18,8 +24,10 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_role WHERE code = 'ADMIN');
 
 -- 检查超级管理员用户是否存在，如果不存在则创建
 -- 密码为 Admin@123 的BCrypt加密值
-INSERT INTO sys_user (username, password, real_name, email, department, account_non_expired, account_non_locked, credentials_non_expired, enabled, created_at)
-SELECT 'supadmin', '$2a$10$0WPWBaXQvZ7SuUViXN5vSevqGLP8/i3rCsB6jyB8g78qH1emPukmK', '系统管理员', 'admin@iteams.com', '系统管理部', 1, 1, 1, 1, CURRENT_TIMESTAMP
+INSERT INTO sys_user (username, password, real_name, email, department_id, account_non_expired, account_non_locked, credentials_non_expired, enabled, created_at)
+SELECT 'supadmin', '$2a$10$0WPWBaXQvZ7SuUViXN5vSevqGLP8/i3rCsB6jyB8g78qH1emPukmK', '系统管理员', 'admin@iteams.com', 
+       (SELECT id FROM sys_department WHERE code = 'SYS_ADMIN'),
+       1, 1, 1, 1, CURRENT_TIMESTAMP
 FROM dual
 WHERE NOT EXISTS (SELECT 1 FROM sys_user WHERE username = 'supadmin');
 

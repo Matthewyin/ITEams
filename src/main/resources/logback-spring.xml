@@ -10,7 +10,7 @@
 -->
 <configuration>
     <!-- 全局属性定义，用于日志文件路径和命名 -->
-    <property name="LOG_PATH" value="/Users/matthewyin/Coding/EITAIS/logs" />
+    <property name="LOG_PATH" value="./logs" />
     <property name="APP_NAME" value="iteams" />
     
     <!-- 控制台输出 -->
