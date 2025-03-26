@@ -28,6 +28,9 @@ public class LoginResponseDTO {
     // 账户锁定时的解锁时间
     private LocalDateTime unlockTime;
     
+    // 是否需要用户修改密码
+    private Boolean requirePasswordChange;
+    
     /**
      * 登录状态枚举
      */

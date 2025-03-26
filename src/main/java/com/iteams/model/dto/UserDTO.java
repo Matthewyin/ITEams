@@ -60,6 +60,16 @@ public class UserDTO {
      */
     private Integer status;
 
+    /**
+     * 账户是否未锁定，true表示正常，false表示锁定
+     */
+    private Boolean accountNonLocked;
+
+    /**
+     * 是否需要在首次登录时修改密码
+     */
+    private Boolean requirePasswordChange;
+
     @Builder.Default
     private Set<String> roles = new HashSet<>();
     

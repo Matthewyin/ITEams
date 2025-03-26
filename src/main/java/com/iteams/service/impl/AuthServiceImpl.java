@@ -147,6 +147,18 @@ public class AuthServiceImpl implements AuthService {
                 // 记录登录成功日志 - 情况1: 合法用户，登录成功
                 logHelper.recordLoginLog(user, true, "用户登录成功");
                 
+                // 检查用户是否需要修改密码
+                if (Boolean.TRUE.equals(user.getRequirePasswordChange())) {
+                    log.info("用户[{}]首次登录，需要修改密码", user.getUsername());
+                    // 返回登录响应，并设置需要修改密码标志
+                    return LoginResponseDTO.builder()
+                            .token(token)
+                            .userInfo(userInfo)
+                            .status(LoginResponseDTO.LoginStatus.SUCCESS)
+                            .requirePasswordChange(true)
+                            .build();
+                }
+                
                 // 返回登录响应
                 return LoginResponseDTO.builder()
                         .token(token)
@@ -249,6 +261,7 @@ public class AuthServiceImpl implements AuthService {
         userInfo.setPhone(user.getPhone());
         userInfo.setAvatarUrl(user.getAvatarUrl());
         userInfo.setLastLoginTime(user.getLastLoginTime());
+        userInfo.setRequirePasswordChange(user.getRequirePasswordChange());
         
         // 获取角色编码列表
         List<String> roles = user.getRoles().stream()

@@ -96,6 +96,13 @@ public class User {
     private Boolean credentialsNonExpired = Boolean.TRUE;
 
     /**
+     * 是否需要在首次登录时修改密码
+     */
+    @Builder.Default
+    @Column(name = "require_password_change")
+    private Boolean requirePasswordChange = Boolean.FALSE;
+
+    /**
      * 账号是否启用
      */
     @Builder.Default

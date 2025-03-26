@@ -133,7 +133,18 @@ public class UserServiceImpl implements UserService {
         // 创建用户
         User user = new User();
         user.setUsername(userDTO.getUsername());
-        user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        
+        // 设置密码: 如果没有提供密码，使用默认密码 "12345678"，并设置首次登录需要修改密码
+        String password = (userDTO.getPassword() == null || userDTO.getPassword().trim().isEmpty()) 
+            ? "12345678" 
+            : userDTO.getPassword();
+            
+        user.setPassword(passwordEncoder.encode(password));
+        
+        // 如果使用的是默认密码，或者明确指定需要修改密码，则设置为需要修改密码
+        boolean needsPasswordChange = (password.equals("12345678") || Boolean.TRUE.equals(userDTO.getRequirePasswordChange()));
+        user.setRequirePasswordChange(needsPasswordChange);
+        
         user.setRealName(userDTO.getRealName());
         user.setEmail(userDTO.getEmail());
         user.setPhone(userDTO.getPhone());
@@ -267,6 +278,7 @@ public class UserServiceImpl implements UserService {
         // 更新密码
         user.setPassword(passwordEncoder.encode(randomPassword));
         user.setCredentialsNonExpired(false); // 要求用户下次登录时修改密码
+        user.setRequirePasswordChange(true); // 设置首次登录时需要修改密码标志
         userRepository.save(user);
 
         return randomPassword;
@@ -292,9 +304,15 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("新密码与确认密码不一致");
         }
 
+        // 验证新密码不能与默认密码相同
+        if ("12345678".equals(passwordDTO.getNewPassword())) {
+            throw new IllegalArgumentException("新密码不能与默认密码相同");
+        }
+
         // 更新密码
         user.setPassword(passwordEncoder.encode(passwordDTO.getNewPassword()));
         user.setCredentialsNonExpired(true);
+        user.setRequirePasswordChange(false); // 清除强制修改密码标记
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
     }
@@ -351,7 +369,13 @@ public class UserServiceImpl implements UserService {
         }
         
         // 设置状态，将Boolean转换为Integer
-        dto.setStatus(user.isEnabled() ? 1 : 0);
+        dto.setStatus(user.isEnabled() ? Integer.valueOf(1) : Integer.valueOf(0));
+        
+        // 设置账户锁定状态
+        dto.setAccountNonLocked(user.isAccountNonLocked());
+        
+        // 设置是否需要首次登录修改密码
+        dto.setRequirePasswordChange(user.getRequirePasswordChange());
         
         // 设置角色
         Set<String> roles = user.getRoles().stream()
@@ -448,65 +472,87 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public List<UserDTO> batchCreateUsers(List<UserDTO> userDTOs) {
-        log.info("批量创建用户, 数量: {}", userDTOs.size());
+        List<UserDTO> createdUsers = new ArrayList<>();
+        Set<String> existingUsernames = new HashSet<>();
         
-        // 验证用户名是否重复
-        Set<String> usernames = userDTOs.stream()
-                .map(UserDTO::getUsername)
-                .collect(Collectors.toSet());
-        
-        // 检查用户名是否已存在
-        List<String> existingUsernames = new ArrayList<>();
-        for (String username : usernames) {
-            if (userRepository.existsByUsername(username)) {
-                existingUsernames.add(username);
-            }
-        }
-        
-        if (!existingUsernames.isEmpty()) {
-            throw new IllegalArgumentException("以下用户名已存在: " + String.join(", ", existingUsernames));
-        }
-        
-        // 获取默认角色
-        Role userRole = roleRepository.findByCode("USER")
-                .orElseThrow(() -> new ResourceNotFoundException("角色不存在: USER"));
-        
-        // 创建用户列表
-        List<User> users = new ArrayList<>();
+        // 验证所有用户名是否重复
         for (UserDTO userDTO : userDTOs) {
-            User user = new User();
-            user.setUsername(userDTO.getUsername());
-            user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
-            user.setRealName(userDTO.getRealName());
-            user.setEmail(userDTO.getEmail());
-            user.setPhone(userDTO.getPhone());
-            user.setCreatedAt(LocalDateTime.now());
-            
-            // 设置部门
-            if (userDTO.getDepartmentId() != null) {
-                departmentRepository.findById(userDTO.getDepartmentId())
-                        .ifPresent(user::setDepartment);
+            if (existingUsernames.contains(userDTO.getUsername()) || userRepository.existsByUsername(userDTO.getUsername())) {
+                throw new IllegalArgumentException("用户名重复: " + userDTO.getUsername());
             }
-            
-            // 设置用户状态
-            if (userDTO.getStatus() != null) {
-                user.setEnabled(userDTO.getStatus() == 1);
-            }
-            
-            // 设置默认角色
-            user.setRoles(Collections.singleton(userRole));
-            
-            users.add(user);
+            existingUsernames.add(userDTO.getUsername());
         }
         
-        // 保存用户
-        List<User> savedUsers = userRepository.saveAll(users);
-        log.info("批量创建用户成功, 数量: {}", savedUsers.size());
+        // 批量创建用户
+        for (UserDTO userDTO : userDTOs) {
+            try {
+                // 创建用户
+                User user = new User();
+                user.setUsername(userDTO.getUsername());
+                
+                // 设置密码: 如果没有提供密码，使用默认密码 "12345678"，并设置首次登录需要修改密码
+                String password = (userDTO.getPassword() == null || userDTO.getPassword().trim().isEmpty()) 
+                    ? "12345678" 
+                    : userDTO.getPassword();
+                
+                user.setPassword(passwordEncoder.encode(password));
+                
+                // 如果使用的是默认密码，或者明确指定需要修改密码，则设置为需要修改密码
+                boolean needsPasswordChange = (password.equals("12345678") || Boolean.TRUE.equals(userDTO.getRequirePasswordChange()));
+                user.setRequirePasswordChange(needsPasswordChange);
+                
+                user.setRealName(userDTO.getRealName());
+                user.setEmail(userDTO.getEmail());
+                user.setPhone(userDTO.getPhone());
+                user.setCreatedAt(LocalDateTime.now());
+                
+                // 设置部门
+                if (userDTO.getDepartmentId() != null) {
+                    Department department = departmentRepository.findById(userDTO.getDepartmentId())
+                            .orElseThrow(() -> new ResourceNotFoundException("部门不存在: " + userDTO.getDepartmentId()));
+                    user.setDepartment(department);
+                }
+                
+                // 设置用户组
+                if (userDTO.getGroupIds() != null && !userDTO.getGroupIds().isEmpty()) {
+                    Set<UserGroup> groups = new HashSet<>(userGroupRepository.findAllById(userDTO.getGroupIds()));
+                    if (groups.isEmpty()) {
+                        throw new ResourceNotFoundException("未找到指定用户组");
+                    }
+                    user.setGroups(groups);
+                }
+                
+                // 设置用户状态
+                if (userDTO.getStatus() != null) {
+                    user.setEnabled(userDTO.getStatus() == 1);
+                }
+                
+                // 设置角色
+                if (userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()) {
+                    Set<Role> roles = new HashSet<>();
+                    for (String roleCode : userDTO.getRoles()) {
+                        Role role = roleRepository.findByCode(roleCode)
+                                .orElseThrow(() -> new ResourceNotFoundException("角色不存在: " + roleCode));
+                        roles.add(role);
+                    }
+                    user.setRoles(roles);
+                } else {
+                    // 设置默认角色为普通用户
+                    Role userRole = roleRepository.findByCode("USER")
+                            .orElseThrow(() -> new ResourceNotFoundException("角色不存在: USER"));
+                    user.setRoles(Collections.singleton(userRole));
+                }
+                
+                // 保存用户
+                User savedUser = userRepository.save(user);
+                createdUsers.add(convertToDto(savedUser));
+            } catch (Exception e) {
+                // 单个用户创建失败，继续处理下一个
+                log.error("创建用户[{}]失败: {}", userDTO.getUsername(), e.getMessage(), e);
+            }
+        }
         
-        // 转换为DTO
-        return savedUsers.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
+        return createdUsers;
     }
     
     /**

@@ -19,6 +19,7 @@ public class UserInfoDTO {
     private String phone;
     private String avatarUrl;
     private LocalDateTime lastLoginTime;
+    private Boolean requirePasswordChange;
     private List<String> roles = new ArrayList<>();
     private List<String> permissions = new ArrayList<>();
 }
